@@ -68,7 +68,7 @@ export function MonthlyRange({ fc }: { fc: Envelope<MonthlyForecastData> }) {
             <div
               key={b.step}
               className="ember-row"
-              title={`5th ${k(b.p5)} · 25th ${k(b.p25)} · median ${k(b.p50)} · 75th ${k(b.p75)} · 95th ${k(b.p95)}`}
+              data-tip={`5th ${k(b.p5)} · 25th ${k(b.p25)} · median ${k(b.p50)} · 75th ${k(b.p75)} · 95th ${k(b.p95)}`}
               style={{ display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: 12, fontSize: 15, minWidth: 600 }}
             >
               <span style={{ display: 'flex', flexDirection: 'column' }}>

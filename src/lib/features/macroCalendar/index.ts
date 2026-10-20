@@ -13,4 +13,4 @@ export const getMacroCalendar = defineFeature<MacroCalendarArgs, MacroCalendarDa
 });
 
 export type { MacroCalendarArgs, MacroCalendarData };
-export type { MacroEvent, MacroEventKind } from './types';
+export type { MacroEvent, MacroEventKind, MacroRelease } from './types';

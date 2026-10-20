@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { MockBadge, Panel, SourceFootnote } from '@/components/primitives';
 import { TimeframePills } from '@/components/shell';
 import { ChartHover } from '@/components/charts/ChartHover';
+import { ExpandChart } from '@/components/charts/ChartStudio';
 import type { Envelope } from '@/lib/envelope';
 import type { OhlcvCandle } from '@/lib/features/ohlcv';
 import type { BtcSnapshot } from '@/lib/features/snapshot';
@@ -11,6 +12,8 @@ import { fmtCompact, fmtPct, fmtUsd } from '@/lib/format';
 const W = 1000;
 const H = 280;
 const CHART_H = 290;
+/** The hero's timeframe pill -> the candle interval the studio opens on. */
+const STUDIO_TF: Record<string, '15m' | '1h' | '4h' | '1d' | '1w'> = { '1D': '15m', '7D': '1h', '1M': '4h', '3M': '4h', '1Y': '1d', ALL: '1w' };
 
 /** `$81.4k` for the price axis. */
 const axisUsd = (v: number) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v.toFixed(0)}`);
@@ -114,9 +117,12 @@ export function PriceHero({
               <MockBadge env={snapshot} />
             </div>
           </div>
-          <Suspense fallback={null}>
-            <TimeframePills />
-          </Suspense>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+            <Suspense fallback={null}>
+              <TimeframePills />
+            </Suspense>
+            <ExpandChart title="Bitcoin · BTC / USD" source={{ kind: 'btc', interval: STUDIO_TF[timeframe] ?? '1d' }} label="Buka chart penuh" />
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 34px' }}>

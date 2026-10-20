@@ -707,3 +707,31 @@ button.chip[aria-pressed='true'] {
 .globe-in {
   animation: globeIn 1.6s 0.3s var(--ease) both;
 }
+
+/* Marks that answer the cursor (see HoverTip): a lift in brightness while hovered. */
+[data-tip] {
+  cursor: default;
+  transition: filter 0.2s ease;
+}
+[data-tip][data-tip-on] {
+  filter: brightness(1.35);
+}
+
+/* A row that just arrived on a live feed: a warm wash that fades. */
+@keyframes emberFlash {
+  from {
+    background-color: color-mix(in srgb, var(--accent) 26%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.ember-flash {
+  animation: emberFlash 2.4s ease-out both;
+}
+
+/* Seasonality year window: rows older than the chosen window are hidden. */
+.yr-5 .age-ge5,
+.yr-10 .age-ge10 {
+  display: none;
+}

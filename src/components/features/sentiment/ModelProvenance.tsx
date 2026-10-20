@@ -7,7 +7,7 @@ export function HeadlineModel({ assessment }: { assessment?: SentimentAssessment
     assessment.baseline && `TF-IDF: ${assessment.baseline.label}`,
     assessment.scopeApplied ? `Parser applied: ${assessment.evidence?.cue} → ${assessment.evidence?.target}` : assessment.scopeReason,
     'Text sentiment; not a BTC price forecast.'].filter(Boolean).join(' · ');
-  return <span title={title} style={{ display: 'block', color: 'var(--dim)', fontSize: 12.5, lineHeight: 1.5, padding: '0 18px 6px' }}>
+  return <span data-tip={title} style={{ display: 'block', color: 'var(--dim)', fontSize: 12.5, lineHeight: 1.5, padding: '0 18px 6px' }}>
     {sentimentSource(assessment)}{assessment.needsReview ? ' · review' : ''}
     {assessment.baseline ? ` · TF-IDF ${assessment.baseline.label}` : ''}
   </span>;

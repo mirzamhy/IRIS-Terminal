@@ -1,3 +1,4 @@
+import { ChartHover } from '@/components/charts/ChartHover';
 import type { HalvingCycleData } from '@/lib/features/halvingCycle';
 import { toDay } from '@/lib/quant/daily';
 
@@ -51,15 +52,36 @@ export function CycleOverlay({ data, height = 260 }: { data: HalvingCycleData; h
   const older = lines.filter((l) => !l.current);
   const ticks = [0, 365, 730, 1095, 1460].filter((t) => t <= span);
 
+  // Hover: every week of the span, each cycle's multiple on that day (when it had reached it).
+  const at = (l: (typeof lines)[number], day: number) => {
+    let best: { x: number; m: number } | null = null;
+    for (const p of l.pts) if (!best || Math.abs(p.x - day) < Math.abs(best.x - day)) best = p;
+    return best && Math.abs(best.x - day) <= 7 ? best : null;
+  };
+  const hoverPoints = Array.from({ length: Math.floor(span / 7) + 1 }, (_, i) => i * 7).map((day) => {
+    const cur = lines.find((l) => l.current);
+    const curAt = cur ? at(cur, day) : null;
+    return {
+      x: X(day),
+      y: curAt ? Y(curAt.m) : undefined,
+      lines: [
+        day === 0 ? 'Hari halving' : `Hari ke-${day.toLocaleString('en-US')}`,
+        ...[...lines].reverse().flatMap((l) => {
+          const p = at(l, day);
+          return p ? [`Siklus ${l.c.halving.slice(0, 4)}: ×${p.m >= 10 ? p.m.toFixed(0) : p.m.toFixed(2)}`] : [];
+        }),
+      ],
+    };
+  });
+
   return (
     <div style={{ position: 'relative' }}>
-      <svg
-        width="100%"
+      <ChartHover
+        viewW={W}
+        viewH={H}
         height={height}
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        role="img"
-        aria-label={`Harga tiap siklus sebagai kelipatan harga hari halving, ${cycles.length} siklus`}
+        points={hoverPoints}
+        ariaLabel={`Harga tiap siklus sebagai kelipatan harga hari halving, ${cycles.length} siklus`}
       >
         <path d={`M0 ${Y(1).toFixed(1)} L${W} ${Y(1).toFixed(1)}`} stroke="#3a2b20" strokeDasharray="3 6" vectorEffect="non-scaling-stroke" />
         {older.map((l, i) => (
@@ -86,7 +108,7 @@ export function CycleOverlay({ data, height = 260 }: { data: HalvingCycleData; h
               style={{ filter: 'drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 70%, transparent))' }}
             />
           ))}
-      </svg>
+      </ChartHover>
       {lines.flatMap((l) =>
         [
           { p: mark(l, l.c.top?.date), kind: 'top' as const },
@@ -96,7 +118,7 @@ export function CycleOverlay({ data, height = 260 }: { data: HalvingCycleData; h
           .map((m) => (
             <span
               key={`${l.c.index}-${m.kind}`}
-              title={`Siklus ${l.c.index}: ${m.kind === 'top' ? 'top' : 'bottom'} hari ke-${m.p!.x}, ×${m.p!.m.toFixed(1)}`}
+              data-tip={`Siklus ${l.c.halving.slice(0, 4)} · ${m.kind === 'top' ? 'puncak' : 'dasar'}\nHari ke-${m.p!.x}\n×${m.p!.m.toFixed(1)} dari harga halving`}
               style={{
                 position: 'absolute',
                 left: `${(X(m.p!.x) / W) * 100}%`,

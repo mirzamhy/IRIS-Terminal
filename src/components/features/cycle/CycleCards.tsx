@@ -54,7 +54,7 @@ function Timeline({ d }: { d: HalvingCycleData }) {
         {bands.map((p) => (
           <div
             key={p.key}
-            title={`${PROJ_WORD[p.key]}: ${fmtDay(p.primary.center)} (80%: ${fmtDay(p.primary.p80[0])} – ${fmtDay(p.primary.p80[1])})`}
+            data-tip={`${PROJ_WORD[p.key]}: ${fmtDay(p.primary.center)} (80%: ${fmtDay(p.primary.p80[0])} – ${fmtDay(p.primary.p80[1])})`}
             style={{
               position: 'absolute',
               left: at(p.primary.p80[0]),
@@ -68,13 +68,13 @@ function Timeline({ d }: { d: HalvingCycleData }) {
         ))}
         {cur.top ? (
           <span
-            title={`Top ${fmtDay(cur.top.date)} · ${usd(cur.top.price)}`}
+            data-tip={`Top ${fmtDay(cur.top.date)} · ${usd(cur.top.price)}`}
             style={{ position: 'absolute', left: at(cur.top.date), top: 12, width: 16, height: 16, marginLeft: -8, borderRadius: '50%', background: '#e9c4a6' }}
           />
         ) : null}
         <span
           className="iris-pulse"
-          title={`Hari ini, hari ke-${since}`}
+          data-tip={`Hari ini, hari ke-${since}`}
           style={{
             position: 'absolute',
             left: `${Math.min(100, (since / total) * 100)}%`,

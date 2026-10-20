@@ -32,7 +32,7 @@ export function OutcomeSquares({ items, label }: { items: { key: string; outcome
       {items.map((it) => (
         <span
           key={it.key}
-          title={it.title}
+          data-tip={it.title}
           style={{
             width: 22,
             height: 22,

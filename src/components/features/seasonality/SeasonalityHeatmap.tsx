@@ -5,6 +5,7 @@ import type { SeasonalityCell } from '@/lib/features/seasonality';
 import { toSeasonalityLabel } from '@/lib/features/seasonality/present';
 import { monthlySummary } from '@/lib/features/seasonality';
 import { fmtPct, MONTHS } from '@/lib/format';
+import { YearWindow } from './YearWindow';
 
 export interface SeasonalityHeatmapProps {
   seasonality: Envelope<SeasonalityCell[]>;
@@ -50,24 +51,29 @@ export function SeasonalityHeatmap({ seasonality }: SeasonalityHeatmapProps) {
         }
       />
       <p style={{ position: 'relative', zIndex: 4, margin: 0, padding: '0 26px', fontSize: 14, color: 'var(--mut)' }}>
-        Return tiap bulan, close ke close. Oranye naik, cokelat turun; kotak bergaris = bulan berjalan.
+        Oranye naik, cokelat turun; kotak bergaris = bulan berjalan. Baris ringkasan selalu dari semua {years.length} tahun.
       </p>
-      <div style={{ position: 'relative', zIndex: 4, padding: '16px 26px', overflowX: 'auto', minWidth: 0 }}>
+      <div style={{ position: 'relative', zIndex: 4, padding: '16px 26px', minWidth: 0 }}>
+        <YearWindow total={years.length}>
+        <div style={{ overflowX: 'auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 4, minWidth: 640 }}>
           <HeadCell>Tahun</HeadCell>
           {MONTHS.map((m) => (
             <HeadCell key={m}>{m}</HeadCell>
           ))}
 
-          {years.map((y) => (
+          {years.map((y) => {
+            const age = years[years.length - 1] - y;
+            const cls = `${age >= 5 ? 'age-ge5' : ''} ${age >= 10 ? 'age-ge10' : ''}`;
+            return (
             <Row key={y}>
-              <HeadCell>{`'${String(y).slice(2)}`}</HeadCell>
+              <HeadCell cls={cls}>{`'${String(y).slice(2)}`}</HeadCell>
               {MONTHS.map((_, i) => {
                 const cell = byKey.get(`${y}-${i + 1}`);
-                if (!cell) return <DataCell key={i} />;
+                if (!cell) return <DataCell key={i} cls={cls} />;
                 const { tone, alpha, ink } = tint(cell.returnPct);
                 return (
-                  <DataCell key={i} running={cell.partial} title={`${MONTHS[i]} ${y}: ${fmtPct(cell.returnPct)}${cell.partial ? ' · BERJALAN (sampai data terakhir)' : ''}`}>
+                  <DataCell key={i} cls={cls} running={cell.partial} tip={`${MONTHS[i]} ${y}\nReturn ${fmtPct(cell.returnPct)}${cell.partial ? '\nBerjalan, sampai data terakhir' : ''}`}>
                     <span aria-hidden style={{ position: 'absolute', inset: 0, borderRadius: 7, background: tone, opacity: alpha }} />
                     <span style={{ position: 'relative', color: ink }}>{toSeasonalityLabel(cell)}</span>
                     {cell.partial ? (
@@ -77,7 +83,8 @@ export function SeasonalityHeatmap({ seasonality }: SeasonalityHeatmapProps) {
                 );
               })}
             </Row>
-          ))}
+            );
+          })}
 
           {(['mean', 'median'] as const).map((k) => (
             <Row key={k}>
@@ -87,7 +94,7 @@ export function SeasonalityHeatmap({ seasonality }: SeasonalityHeatmapProps) {
                 if (v === null) return <DataCell key={s.month} strong>—</DataCell>;
                 const { tone, alpha, ink } = tint(v);
                 return (
-                  <DataCell key={s.month} strong>
+                  <DataCell key={s.month} strong tip={`${MONTHS[s.month - 1]} · ${k === 'mean' ? 'rata-rata' : 'median'} semua tahun\n${fmtPct(v)} dari ${s.n} tahun`}>
                     <span aria-hidden style={{ position: 'absolute', inset: 0, borderRadius: 7, background: tone, opacity: alpha }} />
                     <span style={{ position: 'relative', color: ink }}>{fmtPct(v)}</span>
                   </DataCell>
@@ -99,7 +106,7 @@ export function SeasonalityHeatmap({ seasonality }: SeasonalityHeatmapProps) {
           <Row>
             <HeadCell>% tahun naik</HeadCell>
             {summary.map((s) => (
-              <DataCell key={s.month} strong title={`${MONTHS[s.month - 1]}: naik di ${s.up} dari ${s.n} tahun`}>
+              <DataCell key={s.month} strong tip={`${MONTHS[s.month - 1]}\nNaik di ${s.up} dari ${s.n} tahun`}>
                 <span style={{ display: 'block', color: s.pctUp === null || s.pctUp === 50 ? 'var(--mut)' : s.pctUp > 50 ? '#ffb27a' : 'var(--down)' }}>
                   {s.pctUp === null ? '—' : `${Math.round(s.pctUp)}%`}
                 </span>
@@ -110,6 +117,8 @@ export function SeasonalityHeatmap({ seasonality }: SeasonalityHeatmapProps) {
             ))}
           </Row>
         </div>
+        </div>
+        </YearWindow>
       </div>
       {running ? (
         <div style={{ position: 'relative', zIndex: 4, padding: '0 26px 8px', fontSize: 13, color: 'var(--dim)' }}>
@@ -125,18 +134,19 @@ function Row({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function HeadCell({ children }: { children?: ReactNode }) {
+function HeadCell({ children, cls }: { children?: ReactNode; cls?: string }) {
   return (
-    <div style={{ padding: '6px 4px', textAlign: 'center', fontSize: 12.5, color: 'var(--dim)', alignSelf: 'center' }}>
+    <div className={cls} style={{ padding: '6px 4px', textAlign: 'center', fontSize: 12.5, color: 'var(--dim)', alignSelf: 'center' }}>
       {children}
     </div>
   );
 }
 
-function DataCell({ children, strong, title, running }: { children?: ReactNode; strong?: boolean; title?: string; running?: boolean }) {
+function DataCell({ children, strong, tip, running, cls }: { children?: ReactNode; strong?: boolean; tip?: string; running?: boolean; cls?: string }) {
   return (
     <div
-      title={title}
+      className={cls}
+      data-tip={tip}
       style={{
         position: 'relative',
         outline: running ? '2px dashed var(--txt)' : undefined,

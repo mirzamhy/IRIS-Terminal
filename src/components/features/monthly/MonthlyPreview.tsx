@@ -37,6 +37,20 @@ export function MonthlyPreview({ fc }: { fc: Envelope<MonthlyForecastData> }) {
     <Panel style={{ height: '100%' }}>
       <PanelHeader title="30 hari ke depan" note={`${d.nPaths.toLocaleString('en-US')} jalur simulasi`} right={<MockBadge env={fc} />} />
       <div style={{ position: 'relative', zIndex: 4, padding: '0 26px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ position: 'relative' }}>
+        {/* Hover columns over the chart: one per past close, one per simulated day. */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', zIndex: 1 }}>
+          <div style={{ width: `${(splitX / W) * 100}%`, display: 'flex' }}>
+            {hist.map((p) => (
+              <span key={p.date} data-tip={`${fmtDay(p.date)}\nClose ${k(p.close)}`} style={{ flex: 1 }} />
+            ))}
+          </div>
+          <div style={{ flex: 1, display: 'flex' }}>
+            {d.bands.slice(1).map((b) => (
+              <span key={b.step} data-tip={`${fmtDay(b.date)} · hari ke-${b.step}\nTengah ${k(b.p50)}\n50% jalur ${k(b.p25)} – ${k(b.p75)}\n90% jalur ${k(b.p5)} – ${k(b.p95)}`} style={{ flex: 1 }} />
+            ))}
+          </div>
+        </div>
         <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Kisaran 30 hari: tengah ${k(end.p50)}, 90% jalur antara ${k(end.p5)} dan ${k(end.p95)}`}>
           <path d={band('p95', 'p5')} fill="var(--accent)" fillOpacity={0.14} />
           <path d={band('p75', 'p25')} fill="var(--accent)" fillOpacity={0.3} />
@@ -59,6 +73,7 @@ export function MonthlyPreview({ fc }: { fc: Envelope<MonthlyForecastData> }) {
             5th
           </text>
         </svg>
+        </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="iris-inset" style={{ flex: 1, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 13, color: 'var(--dim)' }}>Rendah (5th)</span>

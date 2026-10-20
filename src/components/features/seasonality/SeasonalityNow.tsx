@@ -70,7 +70,7 @@ export function SeasonalityNow({ seasonality }: { seasonality: Envelope<Seasonal
               const h = `${Math.max(3, (Math.abs(v) / maxAbs) * 48)}%`;
               const on = i === month - 1;
               return (
-                <div key={i} title={`${MONTHS[i]}: ${fmtPct(v, true, 1)} rata-rata`} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div key={i} data-tip={`${MONTHS[i]}\nRata-rata ${fmtPct(v, true, 1)}\nNaik ${summary[i].up} dari ${summary[i].n} tahun`} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end' }}>
                     {v >= 0 ? (
                       <span style={{ width: '100%', height: h, minHeight: 3, borderRadius: '4px 4px 1px 1px', background: on ? 'var(--accent)' : 'color-mix(in srgb, var(--accent) 45%, var(--sunk))' }} />

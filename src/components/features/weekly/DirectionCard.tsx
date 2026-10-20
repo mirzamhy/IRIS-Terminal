@@ -92,11 +92,11 @@ export function DirectionCard({ forecast }: DirectionCardProps) {
             />
             {isClassifier ? (
               labels.isBinary ? (
-                <span style={{ position: 'absolute', top: -5, bottom: -5, left: `${tBullPct}%`, width: 3, marginLeft: -1.5, borderRadius: 2, background: 'var(--txt)' }} title={`Ambang ${labels.thresholdPct}`} />
+                <span style={{ position: 'absolute', top: -5, bottom: -5, left: `${tBullPct}%`, width: 3, marginLeft: -1.5, borderRadius: 2, background: 'var(--txt)' }} data-tip={`Ambang ${labels.thresholdPct}`} />
               ) : (
                 <>
-                  <span style={{ position: 'absolute', top: -5, bottom: -5, left: `${tBearPct}%`, width: 3, marginLeft: -1.5, borderRadius: 2, background: 'var(--down)' }} title={`t_bear ${labels.tBearPct}`} />
-                  <span style={{ position: 'absolute', top: -5, bottom: -5, left: `${tBullPct}%`, width: 3, marginLeft: -1.5, borderRadius: 2, background: 'var(--txt)' }} title={`t_bull ${labels.tBullPct}`} />
+                  <span style={{ position: 'absolute', top: -5, bottom: -5, left: `${tBearPct}%`, width: 3, marginLeft: -1.5, borderRadius: 2, background: 'var(--down)' }} data-tip={`t_bear ${labels.tBearPct}`} />
+                  <span style={{ position: 'absolute', top: -5, bottom: -5, left: `${tBullPct}%`, width: 3, marginLeft: -1.5, borderRadius: 2, background: 'var(--txt)' }} data-tip={`t_bull ${labels.tBullPct}`} />
                 </>
               )
             ) : null}
@@ -134,7 +134,7 @@ export function DirectionCard({ forecast }: DirectionCardProps) {
         </div>
 
         {isClassifier && labels.confidencePct ? (
-          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: '#e9ddd2' }} title={labels.f1Summary}>
+          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: '#e9ddd2' }} data-tip={labels.f1Summary}>
             Setiap kali model memberi sinyal {clf?.signal} di data uji, sinyal itu benar {labels.confidencePct} kali ({labels.confidenceN} sinyal di data uji,{' '}
             {labels.confidenceWindow}). Tanpa model, arah yang sama terjadi {labels.baseRatePct} kali, jadi sinyal ini{' '}
             {beatsBase ? 'lebih sering benar daripada tebakan dasar' : 'tidak lebih baik dari tebakan dasar'}. Skor P(naik) bukan peluang: angka itu hanya dibandingkan

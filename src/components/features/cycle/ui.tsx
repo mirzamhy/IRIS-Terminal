@@ -13,7 +13,7 @@ export function QTable({ children }: { children: ReactNode }) {
 /** `METODOLOGI` chip; the note (built from `src/lib/quant/config.ts`) shows on hover. */
 export function MethodTag({ note }: { note: string }) {
   return (
-    <span title={note} className="chip" style={{ color: 'var(--mut)', cursor: 'help' }}>
+    <span data-tip={note} className="chip" style={{ color: 'var(--mut)', cursor: 'help' }}>
       Metodologi
     </span>
   );

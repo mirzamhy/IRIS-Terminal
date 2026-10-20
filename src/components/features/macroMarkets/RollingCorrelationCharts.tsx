@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { Panel, PanelHeader, MockBadge } from '@/components/primitives';
 import type { Envelope } from '@/lib/envelope';
 import type { MacroMarketsData, MarketSeries } from '@/lib/features/macroMarkets';
+import { MARKET_NAME } from '../macro/ui';
+import { ExpandChart } from '@/components/charts/ChartStudio';
 
 /**
  * 30-day rolling correlation of each market's daily returns with BTC's, over the
  * last year — one small chart per market on the same −1..+1 scale (small
  * multiples: five tangled lines on one chart would need five colours and a
- * legend to read). Curation 2026-10-18 replaced the single-number bars with
- * this so the history is visible.
+ * legend to read).
  *
  * The shaded band is |r| < 1.96/√30 ≈ 0.36: with 30 returns, values inside it
  * are not distinguishable from "no relationship" (large-sample 95% band).
@@ -19,16 +20,14 @@ import type { MacroMarketsData, MarketSeries } from '@/lib/features/macroMarkets
 const WINDOW = 30;
 const NOISE = 1.96 / Math.sqrt(WINDOW);
 
-const W = 320;
+const W = 300;
 const H = 120;
-const PAD_L = 26;
-const PAD_R = 6;
-const PAD_T = 8;
-const PAD_B = 16;
+const PAD_T = 6;
+const PAD_B = 6;
 
 const y = (r: number) => PAD_T + ((1 - r) / 2) * (H - PAD_T - PAD_B);
 
-const fmtR = (r: number) => `${r >= 0 ? '+' : ''}${r.toFixed(2)}`;
+const fmtR = (r: number) => `${r >= 0 ? '+' : '−'}${Math.abs(r).toFixed(2)}`;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 /** Formatted by hand in UTC so server and browser render the same text. */
 const fmtDate = (ts: number) => {
@@ -39,34 +38,37 @@ const fmtDate = (ts: number) => {
 /** The current reading in plain words, on the noise band only — no invented "strong" cut. */
 export function corrWords(r: number | null): string {
   if (r === null) return 'belum cukup data';
-  if (r >= NOISE) return 'bergerak searah dengan BTC';
-  if (r <= -NOISE) return 'bergerak berlawanan dengan BTC';
-  return 'tidak ada hubungan yang jelas';
+  if (r >= NOISE) return 'searah dengan BTC';
+  if (r <= -NOISE) return 'berlawanan dengan BTC';
+  return 'tidak ada hubungan jelas';
 }
 
 function SmallChart({ s }: { s: MarketSeries }) {
   const pts = s.rollingCorr30d;
   const [hover, setHover] = useState<number | null>(null);
+  const name = MARKET_NAME[s.key] ?? s.label;
 
   if (pts.length < 2) {
     return (
-      <div style={{ padding: 12, fontSize: 13, color: 'var(--dim)' }}>
-        {s.label}: belum cukup data untuk korelasi 30 hari.
+      <div className="iris-inset" style={{ padding: 18, fontSize: 14, color: 'var(--dim)' }}>
+        {name}: belum cukup data untuk korelasi 30 hari.
       </div>
     );
   }
 
   const t0 = pts[0].ts;
   const t1 = pts[pts.length - 1].ts;
-  const x = (ts: number) => PAD_L + ((ts - t0) / (t1 - t0 || 1)) * (W - PAD_L - PAD_R);
-  const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.ts).toFixed(1)},${y(p.r).toFixed(1)}`).join(' ');
+  const x = (ts: number) => ((ts - t0) / (t1 - t0 || 1)) * W;
+  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.ts).toFixed(1)},${y(p.r).toFixed(1)}`).join(' ');
+  const area = `${line} L${W},${y(0)} L0,${y(0)} Z`;
   const last = pts[pts.length - 1];
   const h = hover === null ? null : pts[hover];
+  const shown = h ?? last;
+  const stroke = last.r >= 0 ? 'var(--accent)' : '#b8663a';
 
   const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) / rect.width) * W;
-    const ts = t0 + ((px - PAD_L) / (W - PAD_L - PAD_R)) * (t1 - t0);
+    const ts = t0 + ((e.clientX - rect.left) / rect.width) * (t1 - t0);
     let best = 0;
     for (let i = 1; i < pts.length; i += 1) {
       if (Math.abs(pts[i].ts - ts) < Math.abs(pts[best].ts - ts)) best = i;
@@ -75,81 +77,60 @@ function SmallChart({ s }: { s: MarketSeries }) {
   };
 
   return (
-    <div style={{ background: 'var(--panel)', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+    <div style={{ padding: 18, borderRadius: 20, background: 'var(--sunk)', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontSize: 12, color: 'var(--txt)' }}>
-          {s.label}
+        <span style={{ fontSize: 15 }}>{name}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ExpandChart title={`Korelasi 30 hari BTC vs ${name}`} source={{ kind: 'series', points: pts.map((p) => ({ t: p.ts, v: p.r })), unit: '', digits: 2 }} label="" />
+          <span className="t-title" style={{ fontSize: 20, color: shown.r >= 0 ? '#ffb27a' : '#c9b8aa' }}>
+            {fmtR(shown.r)}
+          </span>
         </span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt)' }}>
-          {h ? fmtR(h.r) : fmtR(last.r)}
-        </span>
-      </div>
-      <div style={{ fontSize: 13, color: 'var(--mut)', minHeight: 16 }}>
-        {h ? `${fmtDate(h.ts)} · ${corrWords(h.r)}` : `Sekarang: ${corrWords(last.r)}`}
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        style={{ width: '100%', height: 'auto', display: 'block', touchAction: 'none' }}
+        preserveAspectRatio="none"
+        style={{ width: '100%', height: 110, display: 'block', touchAction: 'none' }}
         role="img"
-        aria-label={`${s.label}: korelasi 30 hari dengan BTC, sekarang ${fmtR(last.r)}`}
+        aria-label={`${name}: korelasi 30 hari dengan BTC, sekarang ${fmtR(last.r)}`}
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
       >
-        {/* noise band */}
-        <rect x={PAD_L} y={y(NOISE)} width={W - PAD_L - PAD_R} height={y(-NOISE) - y(NOISE)} fill="var(--line)" opacity={0.6} />
-        {/* gridlines at +1, 0, −1 */}
-        {[1, 0, -1].map((g) => (
-          <g key={g}>
-            <line
-              x1={PAD_L}
-              x2={W - PAD_R}
-              y1={y(g)}
-              y2={y(g)}
-              stroke={g === 0 ? 'var(--line2)' : 'var(--line)'}
-              strokeWidth={1}
-              vectorEffect="non-scaling-stroke"
-            />
-            <text x={PAD_L - 4} y={y(g) + 3} textAnchor="end" fontSize={8} fontFamily="var(--mono)" fill="var(--dim)">
-              {g > 0 ? '+1' : g < 0 ? '−1' : '0'}
-            </text>
-          </g>
-        ))}
-        <path d={path} fill="none" stroke="var(--blue)" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        {h ? (
-          <g>
-            <line x1={x(h.ts)} x2={x(h.ts)} y1={PAD_T} y2={H - PAD_B} stroke="var(--mut)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-            <circle cx={x(h.ts)} cy={y(h.r)} r={4} fill="var(--blue)" stroke="var(--panel)" strokeWidth={2} />
-          </g>
-        ) : (
-          <circle cx={x(last.ts)} cy={y(last.r)} r={4} fill="var(--blue)" stroke="var(--panel)" strokeWidth={2} />
-        )}
-        <text x={PAD_L} y={H - 3} fontSize={8} fontFamily="var(--mono)" fill="var(--dim)">
-          {fmtDate(t0)}
-        </text>
-        <text x={W - PAD_R} y={H - 3} textAnchor="end" fontSize={8} fontFamily="var(--mono)" fill="var(--dim)">
-          {fmtDate(t1)}
-        </text>
+        <rect x={0} y={y(NOISE)} width={W} height={y(-NOISE) - y(NOISE)} fill="#1f1712" />
+        <path d={`M0 ${y(0)} L${W} ${y(0)}`} stroke="#3a2b20" strokeWidth={1} strokeDasharray="3 5" vectorEffect="non-scaling-stroke" />
+        <path d={area} fill={stroke} fillOpacity={0.14} />
+        <path d={line} fill="none" stroke={stroke} strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        {h ? <line x1={x(h.ts)} x2={x(h.ts)} y1={0} y2={H} stroke="var(--mut)" strokeWidth={1} vectorEffect="non-scaling-stroke" /> : null}
       </svg>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--dim)' }}>
+        {h ? (
+          <span>
+            {fmtDate(h.ts)} · {corrWords(h.r)}
+          </span>
+        ) : (
+          <>
+            <span>{fmtDate(t0)}</span>
+            <span>{corrWords(last.r)}</span>
+            <span>Hari ini</span>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 export function RollingCorrelationCharts({ macro }: { macro: Envelope<MacroMarketsData> }) {
   return (
-    <Panel>
-      <PanelHeader title="KORELASI 30 HARI DENGAN BTC" note="riwayat setahun · return harian, dicocokkan per tanggal" right={<MockBadge env={macro} />} />
-      <p style={{ margin: 0, padding: '4px 26px 10px', fontSize: 15, lineHeight: 1.55, color: '#e9ddd2' }}>
-        Garis menunjukkan seberapa searah tiap pasar bergerak dengan BTC dalam 30 hari terakhir pada
-        setiap tanggal. +1 = selalu bergerak searah, −1 = selalu berlawanan, 0 = tidak berhubungan.
-        Area abu-abu = terlalu lemah untuk disebut hubungan (dengan 30 hari data, nilai di dalamnya
-        bisa terjadi karena kebetulan). Arahkan kursor ke grafik untuk melihat tanggal dan nilainya.
-      </p>
+    <Panel style={{ height: '100%' }}>
+      <PanelHeader title="Korelasi 30 hari, setahun terakhir" note="+1 searah · −1 berlawanan · area gelap = lemah" right={<MockBadge env={macro} />} />
       <div
         style={{
+          position: 'relative',
+          zIndex: 4,
+          padding: '4px 26px 24px',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: 1,
-          background: 'var(--line)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 12,
         }}
       >
         {macro.data.series.map((s) => (

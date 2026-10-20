@@ -3,6 +3,7 @@ import { CountryScopeTabs, PageHeading, StatusFooter, Topbar } from '@/component
 import { getFeedHealth, isStale } from '@/lib/features/feedHealth';
 import { getBtcSnapshot } from '@/lib/features/snapshot';
 import { AutoRefresh } from '@/components/shell/AutoRefresh';
+import { HoverTip } from '@/components/charts/HoverTip';
 import { explainStale } from '@/lib/envelope';
 
 /** The topbar ticker must not look stale under a pulsing LIVE dot. */
@@ -28,6 +29,7 @@ export default async function TerminalLayout({ children }: { children: ReactNode
       <div className="ember-glow" aria-hidden="true" />
       {/* Every page re-renders from the server every 30s while the tab is visible. */}
       <AutoRefresh intervalSec={30} />
+      <HoverTip />
       <div className="ember-page">
         <Topbar
           ticker={{

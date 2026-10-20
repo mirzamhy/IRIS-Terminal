@@ -1,8 +1,9 @@
-import { Panel, PanelHeader, DataTable, MockBadge, SourceFootnote } from '@/components/primitives';
+import { Panel, PanelHeader, MockBadge, SourceFootnote } from '@/components/primitives';
 import type { Envelope } from '@/lib/envelope';
 import type { MacroMetric } from '@/lib/features/macroCountry';
 import { toMacroCountryLabels } from '@/lib/features/macroCountry/present';
 import { zWords } from '@/lib/zWords';
+import { ZTrack, zBand } from './ui';
 
 export interface MacroMetricsProps {
   macro: Envelope<MacroMetric[]>;
@@ -10,54 +11,60 @@ export interface MacroMetricsProps {
   countryLabel: string;
 }
 
-const WINDOW = 'vs 2 tahun terakhir';
-
 /**
- * Four US FRED series, each placed against its own last two years in words
- * (curation 2026-10-18: no z / sigma numbers on screen, no ±3σ bars). No
- * colour: "above usual" is a position, not good or bad news.
+ * Four US FRED series, each placed against its own last two years as a dot on
+ * a track (curation 2026-10-18: no z / sigma numbers on screen). No good/bad
+ * colour: "above usual" is a position, not news.
  */
 export function MacroMetrics({ macro, country, countryLabel }: MacroMetricsProps) {
   const m = macro.data.find((x) => x.country === country) ?? macro.data[0];
   const L = toMacroCountryLabels(m);
 
   const metrics: { key: string; label: string; what: string; value: string; z: number }[] = [
-    { key: 'cpi', label: 'CPI INDEX', what: 'Indeks harga konsumen — level, bukan persen; karena terus naik, hampir selalu "di atas"', value: L.cpi, z: m.zScores.cpi },
-    { key: 'rate', label: 'POLICY RATE', what: 'Suku bunga The Fed (rata-rata bulanan)', value: L.rate, z: m.zScores.rate },
-    { key: 'growth', label: 'GDP GROWTH', what: 'Pertumbuhan ekonomi riil (per kuartal, disetahunkan)', value: L.growth, z: m.zScores.growth },
-    { key: 'inflation', label: 'INFLATION', what: 'Inflasi inti per tahun (tanpa makanan & energi)', value: L.inflation, z: m.zScores.inflation },
+    { key: 'inflation', label: 'Inflasi inti', what: 'per tahun, tanpa makanan & energi', value: L.inflation, z: m.zScores.inflation },
+    { key: 'rate', label: 'Suku bunga The Fed', what: 'rata-rata bulanan', value: L.rate, z: m.zScores.rate },
+    { key: 'growth', label: 'Pertumbuhan GDP', what: 'riil, per kuartal disetahunkan', value: L.growth, z: m.zScores.growth },
+    { key: 'cpi', label: 'Indeks CPI', what: 'level, hampir selalu naik', value: L.cpi, z: m.zScores.cpi },
   ];
+  const cols = 'minmax(170px, 1.6fr) minmax(80px, 0.7fr) minmax(160px, 1.6fr) minmax(100px, 0.8fr)';
 
   return (
-    <Panel style={{ display: 'flex', flexDirection: 'column' }}>
-      <PanelHeader title="DATA EKONOMI AS" note={countryLabel} right={<MockBadge env={macro} />} />
-      <p style={{ margin: 0, padding: '4px 26px 10px', fontSize: 15, lineHeight: 1.55, color: '#e9ddd2' }}>
-        Empat angka ekonomi utama Amerika Serikat dari FRED (bank sentral AS). Kolom terakhir
-        menunjukkan apakah nilainya sedang di atas, sekitar, atau di bawah kebiasaannya selama 2 tahun
-        terakhir. Inflasi dan suku bunga yang tinggi biasanya membuat aset berisiko seperti BTC
-        lebih tertekan.
-      </p>
-
-      <DataTable>
-        <thead>
-          <tr>
-            <th>METRIC</th>
-            <th>ARTINYA</th>
-            <th>NILAI</th>
-            <th>DIBANDING BIASANYA</th>
-          </tr>
-        </thead>
-        <tbody>
+    <Panel style={{ height: '100%' }}>
+      <PanelHeader title={`${countryLabel}, data terbaru`} note="FRED · vs 2 tahun terakhir" right={<MockBadge env={macro} />} />
+      <div style={{ position: 'relative', zIndex: 4, padding: '0 14px 14px', overflowX: 'auto' }}>
+        <div style={{ minWidth: 560, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, padding: '6px 12px 10px', fontSize: 13, color: 'var(--dim)' }}>
+            <span>Indikator</span>
+            <span style={{ textAlign: 'right' }}>Terbaru</span>
+            <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>lebih rendah</span>
+              <span>biasanya</span>
+              <span>lebih tinggi</span>
+            </span>
+            <span style={{ textAlign: 'right' }}>Posisi</span>
+          </div>
           {metrics.map((x) => (
-            <tr key={x.key}>
-              <td style={{ color: 'var(--mut)', fontSize: 12 }}>{x.label}</td>
-              <td style={{ fontSize: 13, color: 'var(--mut)' }}>{x.what}</td>
-              <td style={{ fontSize: 12, fontWeight: 700 }}>{x.value}</td>
-              <td style={{ fontSize: 13, color: 'var(--txt)' }}>{zWords(x.z, WINDOW)}</td>
-            </tr>
+            <div
+              key={x.key}
+              className="ember-row"
+              data-tip={zWords(x.z, '2 tahun terakhir')}
+              style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, alignItems: 'center', padding: '13px 12px' }}
+            >
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <span style={{ fontSize: 15 }}>{x.label}</span>
+                <span style={{ fontSize: 12.5, color: 'var(--dim)' }}>{x.what}</span>
+              </span>
+              <span className="t-title" style={{ fontSize: 19, textAlign: 'right' }}>
+                {x.value}
+              </span>
+              <ZTrack z={x.z} />
+              <span style={{ fontSize: 14, textAlign: 'right', fontWeight: Math.abs(x.z) >= 1 ? 600 : 400, color: Math.abs(x.z) >= 1 ? '#ffb27a' : 'var(--mut)' }}>
+                {zBand(x.z)}
+              </span>
+            </div>
           ))}
-        </tbody>
-      </DataTable>
+        </div>
+      </div>
       <SourceFootnote env={macro} />
     </Panel>
   );

@@ -32,7 +32,7 @@ export function DriverBreakdown({ forecast }: DriverBreakdownProps) {
             <div
               key={d.name}
               className="ember-row"
-              title={d.reading}
+              data-tip={d.reading}
               style={{ display: 'grid', gridTemplateColumns: 'minmax(110px, 160px) minmax(0, 1fr) 64px', alignItems: 'center', gap: 12, padding: '11px 12px' }}
             >
               <span style={{ fontSize: 14, color: '#e9ddd2', display: 'flex', flexDirection: 'column' }}>

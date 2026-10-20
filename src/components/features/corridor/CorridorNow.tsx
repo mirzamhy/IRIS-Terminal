@@ -45,7 +45,7 @@ export function CorridorNow({ pl }: { pl: Envelope<PowerLawData> }) {
             {ZONES.map((z, i) => (
               <div
                 key={z}
-                title={`${z}: persentil ${zoneRange(i)}`}
+                data-tip={`${z}: persentil ${zoneRange(i)}`}
                 style={{ width: `${EDGES[i + 1] - EDGES[i]}%`, background: ZONE_COLOR[z], opacity: z === d.today.zone ? 0.9 : 0.35 }}
               />
             ))}

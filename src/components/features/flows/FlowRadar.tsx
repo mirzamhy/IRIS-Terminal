@@ -1,112 +1,82 @@
-import { Panel, PanelHeader, DataTable, MockBadge, SourceFootnote } from '@/components/primitives';
+import { Panel, MockBadge, SourceFootnote } from '@/components/primitives';
 import type { Envelope } from '@/lib/envelope';
-import type { ChainFlowsData } from '@/lib/features/chainFlows';
-import { toFlowTransferRow } from '@/lib/features/chainFlows';
+import type { ChainFlowsData, FlowTransfer } from '@/lib/features/chainFlows';
+import { LivePill, FreshRows } from '@/components/shell/LiveFeed';
+import { TransferRow, nowSec, readAt } from '@/components/features/onchain/OnChainCards';
 
 export interface FlowRadarProps {
   flows: Envelope<ChainFlowsData>;
+  limit?: number;
 }
 
-/**
- * Chip in the `Tag` idiom, but driven by a raw token string.
- *
- * `Tag` takes a semantic `Tone`; flow kinds and biases already publish
- * their own `var(--…)` colours from the classifier and the events module, and
- * re-deriving a Tone from those would put the same mapping in two places.
- */
-function Chip({ label, color }: { label: string; color: string }) {
-  return (
-    <span
-
-      style={{
-        fontSize: 12,
-        color,
-        border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
-        padding: '3px 8px',
-        whiteSpace: 'nowrap',
-        lineHeight: 1,
-        display: 'inline-block',
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-const th: React.CSSProperties = { color: 'var(--mut)' };
-const mono: React.CSSProperties = { whiteSpace: 'nowrap' };
+const KIND_GROUP: Record<FlowTransfer['kind'], 'in' | 'out' | 'move'> = {
+  EXCHANGE_INFLOW: 'in',
+  HOT_LOADING: 'in',
+  EXCHANGE_OUTFLOW: 'out',
+  COLD_STORING: 'out',
+  INTER_EXCHANGE: 'move',
+  WALLET_TRANSFER: 'move',
+};
 
 /**
- * The wire: every classified movement over 50 BTC touching a tracked wallet,
- * newest first.
- *
- * Read the KIND column as direction of pressure. INFLOW and HOT LOADING put
- * coins where they can be sold; OUTFLOW and COLD STORING take them away.
+ * The wire, live: every classified movement over 50 BTC touching a tracked
+ * wallet, newest first, re-read every 30 seconds with new rows flashing. The
+ * strip above counts what the window holds by direction: coins moving onto
+ * exchanges (can be sold), off them (taken away), or between wallets.
  */
-export function FlowRadar({ flows }: FlowRadarProps) {
-  const rows = flows.data.transfers.map((t) => toFlowTransferRow(t));
+export function FlowRadar({ flows, limit = 10 }: FlowRadarProps) {
+  const all = [...flows.data.transfers].sort((a, b) => (b.blockTime || Infinity) - (a.blockTime || Infinity));
+  const rows = all.slice(0, limit);
+  const sum = (g: 'in' | 'out' | 'move') => all.filter((t) => KIND_GROUP[t.kind] === g).reduce((s, t) => s + t.amountBtc, 0);
+  const groups = [
+    { k: 'Ke bursa', v: sum('in'), c: '#6b4a35' },
+    { k: 'Dari bursa', v: sum('out'), c: 'var(--accent)' },
+    { k: 'Antar dompet', v: sum('move'), c: '#3a2b20' },
+  ];
+  const total = Math.max(1, groups.reduce((s, g) => s + g.v, 0));
 
   return (
-    <Panel style={{ display: 'flex', flexDirection: 'column' }}>
-      <PanelHeader
-        title="FLOW RADAR"
-        note="transfer ≥ 50 BTC · terbaru di atas"
-        right={<MockBadge env={flows} />}
-      />
-
-      {rows.length === 0 ? (
-        <div
-
-          style={{
-            fontSize: 12,
-            color: 'var(--dim)',
-            padding: '18px 12px',
-            }}
-        >
-          NO TRANSFERS ABOVE 50 BTC IN THE OBSERVED WINDOW
+    <Panel style={{ height: '100%' }}>
+      <div style={{ position: 'relative', zIndex: 4, padding: '24px 26px 10px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <h2 className="t-title" style={{ margin: 0, fontSize: 22 }}>
+            Flow radar
+          </h2>
+          <span style={{ fontSize: 13, color: 'var(--dim)' }}>Transfer ≥ 50 BTC · terbaru di atas</span>
+        </span>
+        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <LivePill renderedAt={readAt(flows)} />
+          <MockBadge env={flows} />
+        </span>
+      </div>
+      <div style={{ position: 'relative', zIndex: 4, padding: '4px 26px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', height: 12, gap: 3 }}>
+          {groups.map((g) =>
+            g.v > 0 ? (
+              <span
+                key={g.k}
+                className="ember-grow"
+                data-tip={`${g.k}\n${Math.round(g.v).toLocaleString('en-US')} BTC · ${((g.v / total) * 100).toFixed(0)}%`}
+                style={{ width: `${(g.v / total) * 100}%`, borderRadius: 999, background: g.c }}
+              />
+            ) : null,
+          )}
         </div>
-      ) : (
-        <DataTable>
-          <thead>
-            <tr>
-              <th style={th}>TIME</th>
-              <th style={th}>AMOUNT</th>
-              <th style={th}>KIND</th>
-              <th style={th}>BIAS</th>
-              <th style={th}>EXCHANGE</th>
-              <th style={th}>ROUTE</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.txid}>
-                <td style={{ ...mono, color: 'var(--mut)' }}>{r.ago}</td>
-                <td style={{ ...mono, fontWeight: 700, color: 'var(--txt)' }}>{r.amount}</td>
-                <td>
-                  <Chip label={r.kindLabel} color={r.kindColor} />
-                </td>
-                <td>
-                  <Chip label={r.biasWord} color={r.biasColor} />
-                </td>
-                <td style={{ ...mono, color: 'var(--mut)' }}>{r.exchange}</td>
-                <td
-                  style={{
-                    color: 'var(--dim)',
-                    fontSize: 12,
-                    maxWidth: 260,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {r.route}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </DataTable>
-      )}
-
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, fontSize: 13, color: 'var(--mut)' }}>
+          {groups.map((g) => (
+            <span key={g.k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: g.c }} />
+              {g.k} <b style={{ color: 'var(--txt)' }}>{Math.round(g.v).toLocaleString('en-US')}</b>
+            </span>
+          ))}
+        </div>
+      </div>
+      <FreshRows ids={rows.map((t) => t.txid)} style={{ position: 'relative', zIndex: 4, padding: '0 26px 14px', display: 'flex', flexWrap: 'wrap', gap: '2px 32px' }}>
+        {rows.length === 0 ? <span style={{ fontSize: 14, color: 'var(--mut)', padding: '8px 0' }}>Belum ada transfer di atas 50 BTC di jendela ini.</span> : null}
+        {rows.map((t) => (
+          <TransferRow key={t.txid} t={t} wide nowSec={nowSec(flows)} />
+        ))}
+      </FreshRows>
       <SourceFootnote env={flows} />
     </Panel>
   );

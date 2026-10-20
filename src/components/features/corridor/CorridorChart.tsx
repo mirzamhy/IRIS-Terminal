@@ -1,45 +1,43 @@
-import { Panel, PanelHeader, MockBadge, SourceFootnote } from '@/components/primitives';
+import { Panel, MockBadge, SourceFootnote } from '@/components/primitives';
 import { ChartHover } from '@/components/charts/ChartHover';
+import { ExpandChart } from '@/components/charts/ChartStudio';
 import type { Envelope } from '@/lib/envelope';
 import type { PowerLawData } from '@/lib/features/powerLawCorridor';
-import { ZONE_COLOR, usd } from '@/lib/features/halvingCycle/present';
+import { usd } from '@/lib/features/halvingCycle/present';
 import { toDay } from '@/lib/quant/daily';
-import { ZONE_EDGES } from '@/lib/quant/config';
-import { ZONES, bandsAt, zoneOf } from '@/lib/quant/powerLaw';
+import { bandsAt, zoneOf } from '@/lib/quant/powerLaw';
 import { fmtDay } from '@/lib/dates';
-import { Explain, decadeTicks, logScale, microText, tickUsd, yearTicks } from '../cycle/ui';
+import { decadeTicks, logScale, tickUsd, yearTicks } from '../cycle/ui';
 
-const W = 900;
-const H = 430;
-const PAD_R = 50;
-const TOP_T = 14;
-const TOP_B = 280;
-const PCT_T = 300;
-const PCT_B = 404;
+const W = 1000;
+const H = 400;
+const HEIGHT = 420;
+const LAST = 4;
 
-/** Fill between band i and i+1 (p5–p25 … p75–p95): cheap → expensive. */
-const BAND_FILL = ['#7a5338', '#a0613a', '#e8813a', '#ffb27a'];
-const LAST = BAND_FILL.length;
-const EDGES = [0, ...ZONE_EDGES, 100];
+const k = (v: number) => (v >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : `$${(v / 1000).toFixed(1)}k`);
 
 /**
- * Top: price (log) inside the rainbow bands of the newest fit. Bottom: the
- * walk-forward percentile 0–100 with the zone lines. One crosshair for both.
+ * Price (log) inside the corridor of the newest fit: the P5–P95 lane filled,
+ * P25–P75 a shade deeper, the P50 line dashed, the close as a glowing line.
+ * Bands use today's fit, so their past shape uses today's knowledge; the
+ * walk-forward percentile (no hindsight) lives in its own card.
+ *
+ * Labels are HTML over the SVG so they keep the terminal's type: the SVG
+ * stretches to the card and would stretch any text drawn inside it.
  */
 export function CorridorChart({ pl }: { pl: Envelope<PowerLawData> }) {
   const d = pl.data;
   const pts = d.series;
   const d0 = toDay(pts[0].date);
   const d1 = toDay(pts[pts.length - 1].date);
-  const x = (day: number) => ((day - d0) / (d1 - d0)) * (W - PAD_R);
+  const x = (day: number) => ((day - d0) / (d1 - d0)) * W;
   const bands = pts.map((p) => bandsAt(d.fit, toDay(p.date)));
   const lo = Math.min(...pts.map((p) => p.price), ...bands.map((b) => b[0])) * 0.8;
-  const hi = Math.max(...pts.map((p) => p.price), ...bands.map((b) => b[LAST])) * 1.2;
-  const y = logScale(lo, hi, TOP_T, TOP_B);
-  const yp = (pct: number) => PCT_B - (pct / 100) * (PCT_B - PCT_T);
+  const hi = Math.max(...pts.map((p) => p.price), ...bands.map((b) => b[LAST])) * 1.3;
+  const y = logScale(lo, hi, 6, H - 6);
+  const px = (vy: number) => (vy / H) * HEIGHT;
 
-  const line = (vals: number[], yy: (v: number) => number) =>
-    vals.map((v, i) => `${i ? 'L' : 'M'}${x(toDay(pts[i].date)).toFixed(1)},${yy(v).toFixed(1)}`).join(' ');
+  const line = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(toDay(pts[i].date)).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const ribbon = (qa: number, qb: number) => {
     const up = bands.map((b, i) => `${i ? 'L' : 'M'}${x(toDay(pts[i].date)).toFixed(1)},${y(b[qb]).toFixed(1)}`).join(' ');
     const down = bands
@@ -48,66 +46,111 @@ export function CorridorChart({ pl }: { pl: Envelope<PowerLawData> }) {
       .join(' ');
     return `${up} ${down} Z`;
   };
+  const end = bands[bands.length - 1];
+  const lastPt = pts[pts.length - 1];
 
   return (
     <Panel>
-      <PanelHeader title="KORIDOR POWER-LAW" note={`mingguan sejak ${pts[0].date.slice(0, 4)} · skala log`} right={<MockBadge env={pl} />} />
-      <Explain>
-        Atas: harga (garis oranye) di dalam pita warna, dari cokelat gelap = murah sampai oranye terang = mahal. Pita digambar dengan fit
-        terbaru, jadi bentuk pita di masa lalu memakai pengetahuan sekarang. Bawah: persentil walk-forward yang{' '}
-        <b>tidak</b> memakai hindsight — itu angka yang dipakai untuk semua uji di halaman ini.
-      </Explain>
-      <div style={{ position: 'relative', zIndex: 4, padding: '12px 22px' }}>
-        <ChartHover
-          viewW={W}
-          viewH={H}
-          height={430}
-          svgStyle={{ background: 'var(--sunk)' }}
-          ariaLabel="Harga BTC dalam koridor power-law dan persentilnya"
-          points={pts.map((p, i) => ({
-            x: x(toDay(p.date)),
-            y: y(p.price),
-            lines: [fmtDay(p.date), `Harga ${usd(p.price)}`, `Persentil ${p.pct.toFixed(0)} · ${zoneOf(p.pct)}`, `Pita terbawah–teratas ${usd(bands[i][0])} – ${usd(bands[i][LAST])}`],
-          }))}
-        >
+      <div style={{ position: 'relative', zIndex: 4, padding: '24px 26px 4px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h2 className="t-title" style={{ margin: 0, fontSize: 22 }}>
+            Koridor power-law
+          </h2>
+          <MockBadge env={pl} />
+        </span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, fontSize: 13, color: 'var(--mut)' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 18, height: 3, borderRadius: 2, background: 'var(--accent)' }} />
+            Harga mingguan
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 18, height: 0, borderTop: '2px dashed #e9c4a6' }} />
+            Tengah (P50)
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 14, height: 10, borderRadius: 3, background: 'color-mix(in srgb, var(--accent) 22%, var(--panel))' }} />
+            Koridor P5–P95
+          </span>
+          <ExpandChart title="BTC mingguan, sejak 2010" source={{ kind: 'series', points: pts.map((p) => ({ t: Date.parse(p.date), v: p.price })), unit: '$', digits: 0 }} />
+        </div>
+      </div>
+      <div style={{ position: 'relative', zIndex: 4, padding: '12px 26px 8px' }}>
+        <div style={{ position: 'relative' }}>
+          <ChartHover
+            viewW={W}
+            viewH={H}
+            height={HEIGHT}
+            ariaLabel="Harga BTC dalam koridor power-law, skala log"
+            points={pts.map((p, i) => ({
+              x: x(toDay(p.date)),
+              y: y(p.price),
+              lines: [fmtDay(p.date), `Harga ${usd(p.price)}`, `Tengah ${usd(bands[i][2])}`, `Koridor ${usd(bands[i][0])} – ${usd(bands[i][LAST])}`, `Persentil ${p.pct.toFixed(0)} · ${zoneOf(p.pct)}`],
+            }))}
+          >
+            {decadeTicks(lo, hi).map((p) => (
+              <line key={p} x1={0} x2={W} y1={y(p)} y2={y(p)} stroke="#241a13" vectorEffect="non-scaling-stroke" />
+            ))}
+            <path d={ribbon(0, LAST)} fill="var(--accent)" fillOpacity={0.08} />
+            <path d={ribbon(1, 3)} fill="var(--accent)" fillOpacity={0.08} />
+            {[0, LAST].map((q) => (
+              <path key={q} d={line(bands.map((b) => b[q]))} fill="none" stroke="#8a5e40" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+            ))}
+            <path d={line(bands.map((b) => b[2]))} fill="none" stroke="#e9c4a6" strokeWidth={1.5} strokeDasharray="5 6" vectorEffect="non-scaling-stroke" />
+            <path
+              d={line(pts.map((p) => p.price))}
+              fill="none"
+              stroke="var(--accent)"
+              strokeWidth={2.5}
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+              style={{ filter: 'drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 70%, transparent))' }}
+            />
+          </ChartHover>
           {decadeTicks(lo, hi).map((p) => (
-            <g key={p}>
-              <line x1={0} x2={W - PAD_R} y1={y(p)} y2={y(p)} stroke="var(--line)" vectorEffect="non-scaling-stroke" />
-              <text x={W - PAD_R + 6} y={y(p) + 3} {...microText} fill="var(--dim)">
-                {tickUsd(p)}
-              </text>
-            </g>
+            <span key={p} style={{ position: 'absolute', left: 8, top: px(y(p)) - 17, fontSize: 12, color: '#8f7d70', pointerEvents: 'none' }}>
+              {tickUsd(p)}
+            </span>
           ))}
-          {BAND_FILL.map((_, k) => (
-            <path key={k} d={ribbon(k, k + 1)} fill={BAND_FILL[k]} fillOpacity={0.16} stroke="none" />
-          ))}
-          {[0, LAST].map((q) => (
-            <path key={q} d={line(bands.map((b) => b[q]), y)} fill="none" stroke={q ? 'var(--down)' : 'var(--up)'} strokeOpacity={0.5} vectorEffect="non-scaling-stroke" />
-          ))}
-          <path d={line(pts.map((p) => p.price), y)} fill="none" stroke="var(--accent)" strokeWidth={2} vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent))' }} />
-
-          {/* percentile strip */}
-          {ZONES.map((z, i) => (
-            <rect key={z} x={0} width={W - PAD_R} y={yp(EDGES[i + 1])} height={yp(EDGES[i]) - yp(EDGES[i + 1])} fill={ZONE_COLOR[z]} fillOpacity={0.08} />
-          ))}
-          {ZONE_EDGES.map((v) => (
-            <g key={v}>
-              <line x1={0} x2={W - PAD_R} y1={yp(v)} y2={yp(v)} stroke="var(--line2)" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />
-              <text x={W - PAD_R + 6} y={yp(v) + 3} {...microText} fill="var(--dim)">
-                {v}
-              </text>
-            </g>
-          ))}
-          <path d={line(pts.map((p) => p.pct), yp)} fill="none" stroke="var(--blue)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-          <text x={4} y={PCT_T - 6} {...microText} fill="var(--mut)">
-            PERSENTIL 0–100 (WALK-FORWARD)
-          </text>
+          {(() => {
+            // Above its line for the top two, below for the floor; then pushed apart so none overlap.
+            const tops = [px(y(end[LAST])) - 20, px(y(end[2])) - 20, px(y(end[0])) + 6];
+            for (let i = 1; i < tops.length; i += 1) tops[i] = Math.max(tops[i], tops[i - 1] + 18);
+            return (
+              [
+                ['Mahal (P95)', end[LAST], 'var(--mut)'],
+                ['Tengah (P50)', end[2], '#e9c4a6'],
+                ['Murah (P5)', end[0], 'var(--mut)'],
+              ] as const
+            ).map(([label, v, c], i) => (
+              <span key={label} style={{ position: 'absolute', right: 22, top: tops[i], fontSize: 13, color: c, pointerEvents: 'none', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                {label} · {k(v)}
+              </span>
+            ));
+          })()}
+          <span
+            className="iris-pulse"
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: px(y(lastPt.price)),
+              width: 14,
+              height: 14,
+              margin: -7,
+              borderRadius: '50%',
+              background: '#ffd2ae',
+              border: '3px solid var(--accent)',
+              pointerEvents: 'none',
+            }}
+          />
+        </div>
+        <div style={{ position: 'relative', height: 22, marginTop: 8, fontSize: 12, color: '#8f7d70' }}>
           {yearTicks(d0, d1).map((t) => (
-            <text key={t.year} x={x(t.day)} y={H - 8} {...microText} fill="var(--dim)" textAnchor={x(t.day) < 20 ? 'start' : 'middle'}>
+            <span key={t.year} style={{ position: 'absolute', left: `${((x(t.day) / W) * 100).toFixed(2)}%`, transform: x(t.day) < 30 ? undefined : 'translateX(-50%)' }}>
               {t.year}
-            </text>
+            </span>
           ))}
-        </ChartHover>
+        </div>
       </div>
       <SourceFootnote env={pl} />
     </Panel>

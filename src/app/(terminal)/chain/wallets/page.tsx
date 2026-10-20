@@ -5,7 +5,7 @@ import { FlowRadar } from '@/components/features/flows/FlowRadar';
 
 export const revalidate = 60;
 
-/** The tracked exchange addresses: what they hold, what moved in and out, and every large transfer. */
+/** The tracked exchange addresses: what they hold, what moved in and out per exchange, and the live wire. */
 export default async function WalletsPage() {
   const flows = await getChainFlows({ symbol: 'BTC' });
 
@@ -20,17 +20,17 @@ export default async function WalletsPage() {
             <NetflowCard flows={flows} />
           </div>
         </section>
-        <section className="ember-split" aria-label="By exchange">
-          <div className="main rise" style={{ ['--i' as string]: 4 }}>
-            <ExchangeRadar flows={flows} />
+        <div className="rise" style={{ ['--i' as string]: 4 }}>
+          <ExchangeRadar flows={flows} />
+        </div>
+        <section className="ember-split" aria-label="Live transfers">
+          <div className="main rise" style={{ ['--i' as string]: 5 }}>
+            <FlowRadar flows={flows} />
           </div>
-          <div className="side rise" style={{ ['--i' as string]: 5 }}>
+          <div className="side rise" style={{ ['--i' as string]: 6 }}>
             <LargeTransfers flows={flows} limit={5} />
           </div>
         </section>
-        <div className="rise" style={{ ['--i' as string]: 6 }}>
-          <FlowRadar flows={flows} />
-        </div>
       </LiveOnly>
     </div>
   );

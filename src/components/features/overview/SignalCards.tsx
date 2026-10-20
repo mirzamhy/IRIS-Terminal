@@ -71,7 +71,7 @@ export function WeeklyForecastCard({
           >
             {softCase(wl.label)}
           </span>
-          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }} title={confidence.note}>
+          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }} data-tip={confidence.note}>
             <span className="t-title" style={{ fontSize: 30 }}>
               {confidence.value}
             </span>
@@ -81,7 +81,7 @@ export function WeeklyForecastCard({
 
         <div
           style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
-          title={
+          data-tip={
             isModel
               ? `±1σ of 30-day volatility · held ~${VOL_BAND_HIT_RATE.pct}% of weeks since ${VOL_BAND_HIT_RATE.since} (${VOL_BAND_HIT_RATE.minYearPct}–${VOL_BAND_HIT_RATE.maxYearPct}% by year)`
               : 'Heuristic range'
@@ -142,7 +142,7 @@ export function ConfluenceCard({ confluence }: { confluence: Envelope<Confluence
       <PanelHeader title="Confluence" right={<MockBadge env={confluence} />} />
       <div
         style={{ position: 'relative', zIndex: 4, padding: '4px 22px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}
-        title={`Bull index ${conf.scores.bullish.toFixed(1)} · Bear index ${conf.scores.bearish.toFixed(1)} · not probabilities`}
+        data-tip={`Bull index ${conf.scores.bullish.toFixed(1)} · Bear index ${conf.scores.bearish.toFixed(1)} · not probabilities`}
       >
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
           <span className="t-display" style={{ fontSize: 40 }}>
@@ -156,7 +156,7 @@ export function ConfluenceCard({ confluence }: { confluence: Envelope<Confluence
             return (
               <span
                 key={k}
-                title={`${LAYER_LABEL[k]} ${v.toFixed(0)}`}
+                data-tip={`${LAYER_LABEL[k]} ${v.toFixed(0)}`}
                 style={{
                   flex: 1,
                   height: `${Math.max(6, v)}%`,

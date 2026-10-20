@@ -94,7 +94,7 @@ export function MonthlyForwardPanel({ fc }: { fc: Envelope<MonthlyForecastData> 
                 <span style={{ color: '#e9ddd2' }}>{fmtDay(r.asOf)}</span>
                 <span style={{ color: '#e9ddd2' }}>{fmtDay(o?.date ?? due)}</span>
                 <span>{o ? usd(o.close) : '—'}</span>
-                <div title={o ? BUCKET_WORD[o.bucket] ?? o.bucket : 'menunggu'} style={{ position: 'relative', height: 14, borderRadius: 999, background: 'var(--sunk)' }}>
+                <div data-tip={o ? BUCKET_WORD[o.bucket] ?? o.bucket : 'menunggu'} style={{ position: 'relative', height: 14, borderRadius: 999, background: 'var(--sunk)' }}>
                   <span style={{ position: 'absolute', top: 2, bottom: 2, left: '10%', width: '80%', borderRadius: 999, background: 'color-mix(in srgb, var(--accent) 30%, var(--line))' }} />
                   {pos !== null && pos !== undefined ? (
                     <span style={{ position: 'absolute', top: -4, height: 22, left: `${pos}%`, width: 3, marginLeft: -1.5, borderRadius: 2, background: '#f6eee7' }} />

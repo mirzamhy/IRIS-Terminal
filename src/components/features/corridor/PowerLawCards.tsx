@@ -7,57 +7,60 @@ import { ZONE_EDGES } from '@/lib/quant/config';
 import { ZONES } from '@/lib/quant/powerLaw';
 import { fmtDay } from '@/lib/dates';
 import { MethodTag } from '../cycle/ui';
+import { ChartHover } from '@/components/charts/ChartHover';
 
 const EDGES = [0, ...ZONE_EDGES, 100];
 const k = (v: number) => (v >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : `$${(v / 1000).toFixed(1)}k`);
 
-/** The 0–100 walk-forward percentile on the five zones, with today's marker. */
-function ZoneGauge({ pct }: { pct: number }) {
+/**
+ * The 0–100 walk-forward percentile as one accent bar filling to today, the
+ * middle (P50) marked, zone names under it. Hover a zone for its range.
+ */
+export function ZoneGauge({ pct }: { pct: number }) {
+  const p = Math.max(0, Math.min(100, pct));
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ position: 'relative', display: 'flex', gap: 3, height: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ position: 'relative', height: 16, borderRadius: 999, background: '#241a13' }}>
+        <div
+          className="ember-grow"
+          style={{ width: `${p}%`, height: '100%', borderRadius: 999, background: 'var(--accent)', boxShadow: '0 0 18px color-mix(in srgb, var(--accent) 50%, transparent)' }}
+        />
         {ZONES.map((z, i) => (
           <span
             key={z}
-            title={`${z}: persentil ${EDGES[i]}–${EDGES[i + 1]}`}
-            style={{ width: `${EDGES[i + 1] - EDGES[i]}%`, borderRadius: 999, background: ZONE_COLOR[z], opacity: 0.85 }}
+            data-tip={`${z}\nPersentil ${EDGES[i]}–${EDGES[i + 1]}`}
+            style={{ position: 'absolute', top: 0, bottom: 0, left: `${EDGES[i]}%`, width: `${EDGES[i + 1] - EDGES[i]}%` }}
           />
         ))}
-        <span
-          style={{
-            position: 'absolute',
-            left: `${Math.max(0, Math.min(100, pct))}%`,
-            top: -5,
-            width: 4,
-            height: 24,
-            marginLeft: -2,
-            borderRadius: 2,
-            background: '#f6eee7',
-            boxShadow: '0 0 0 3px var(--panel)',
-          }}
-        />
+        <span style={{ position: 'absolute', left: '50%', top: -6, width: 3, height: 28, marginLeft: -1.5, borderRadius: 2, background: '#e9c4a6', pointerEvents: 'none' }} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--dim)' }}>
-        <span>Sangat murah</span>
-        <span>Wajar</span>
-        <span>Sangat mahal</span>
+      <div style={{ position: 'relative', height: 18, fontSize: 13, color: 'var(--dim)' }}>
+        <span style={{ position: 'absolute', left: 0 }}>Murah</span>
+        <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', color: '#e9c4a6' }}>Tengah</span>
+        <span style={{ position: 'absolute', right: 0 }}>Mahal</span>
       </div>
     </div>
   );
 }
 
-/** Weekly price on a log scale, as a small glowing line. */
+/** Weekly price on a log scale, as a small glowing line; hover for date and price. */
 function MiniLog({ series, height }: { series: PowerLawData['series']; height: number }) {
   const W = 500;
   const H = 160;
   const pts = series.filter((p) => p.price > 0);
   const l0 = Math.log10(Math.min(...pts.map((p) => p.price)));
   const l1 = Math.log10(Math.max(...pts.map((p) => p.price)));
-  const d = pts
-    .map((p, i) => `${i ? 'L' : 'M'}${((i / Math.max(1, pts.length - 1)) * W).toFixed(1)} ${(H - 6 - ((Math.log10(p.price) - l0) / (l1 - l0 || 1)) * (H - 12)).toFixed(1)}`)
-    .join(' ');
+  const X = (i: number) => (i / Math.max(1, pts.length - 1)) * W;
+  const Y = (v: number) => H - 6 - ((Math.log10(v) - l0) / (l1 - l0 || 1)) * (H - 12);
+  const d = pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.price).toFixed(1)}`).join(' ');
   return (
-    <svg width="100%" height={height} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Harga Bitcoin, skala log">
+    <ChartHover
+      viewW={W}
+      viewH={H}
+      height={height}
+      ariaLabel="Harga Bitcoin, skala log"
+      points={pts.map((p, i) => ({ x: X(i), y: Y(p.price), lines: [fmtDay(p.date), `Harga ${usd(p.price)}`, `Persentil ${Math.round(p.pct)}`] }))}
+    >
       <path
         d={d}
         fill="none"
@@ -67,7 +70,7 @@ function MiniLog({ series, height }: { series: PowerLawData['series']; height: n
         vectorEffect="non-scaling-stroke"
         style={{ filter: 'drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent))' }}
       />
-    </svg>
+    </ChartHover>
   );
 }
 

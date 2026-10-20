@@ -39,7 +39,7 @@ export function WorldEventsCard({ events }: { events: Envelope<GeoEvent[]> }) {
             return (
               <span
                 key={e.id}
-                title={`${e.headline} · ${e.place}`}
+                data-tip={`${e.headline} · ${e.place}`}
                 style={{
                   position: 'absolute',
                   left: `${(4 + f * 92).toFixed(2)}%`,

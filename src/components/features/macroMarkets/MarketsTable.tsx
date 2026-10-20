@@ -1,105 +1,73 @@
-import {
-  Panel,
-  PanelHeader,
-  DataTable,
-  MockBadge,
-  SourceFootnote,
-} from '@/components/primitives';
+import { Panel, PanelHeader, MockBadge, SourceFootnote } from '@/components/primitives';
 import type { Envelope } from '@/lib/envelope';
-import type { MacroMarketsData } from '@/lib/features/macroMarkets';
-import { toMacroMarketRows, YAHOO_NOTE } from '@/lib/features/macroMarkets';
+import type { MacroMarketsData, MarketSeries } from '@/lib/features/macroMarkets';
+import { fmtLevel } from '@/lib/features/macroMarkets';
 import { zWordsShort } from '@/lib/zWords';
 import { MiniSpark } from './MiniSpark';
-import { signTone, toneVar } from '@/lib/theme/tokens';
+import { CorrBar, MARKET_GROUP, marketName, fmtChg, chgColor } from '../macro/ui';
+
+const GROUP_ORDER = ['Saham', 'Suku bunga & mata uang', 'Komoditas'];
 
 /**
- * What the rest of the world is doing, and how closely BTC has been following.
+ * What the rest of the world is doing, and how closely BTC has been following,
+ * grouped by asset class.
  *
- * Symbols that failed upstream are listed under the table rather than dropped —
+ * Symbols that failed upstream are listed under the board rather than dropped —
  * a missing row is information, and silently shortening the list would hide it.
  */
 export function MarketsTable({ macro }: { macro: Envelope<MacroMarketsData> }) {
   const d = macro.data;
-  const rows = toMacroMarketRows(d);
+  const groups = new Map<string, MarketSeries[]>();
+  for (const s of d.series) {
+    const g = MARKET_GROUP[s.key] ?? 'Lainnya';
+    groups.set(g, [...(groups.get(g) ?? []), s]);
+  }
+  const rank = (g: string) => (GROUP_ORDER.includes(g) ? GROUP_ORDER.indexOf(g) : GROUP_ORDER.length);
+  const ordered = [...groups.entries()].sort((a, b) => rank(a[0]) - rank(b[0]));
+  const cols = 'minmax(150px, 1.6fr) minmax(80px, 1fr) repeat(3, minmax(64px, 0.8fr)) minmax(120px, 1.2fr) minmax(140px, 1.4fr)';
 
   return (
     <Panel>
-      <PanelHeader
-        title="GLOBAL MARKETS"
-        note="daily · change over 1, 5 and 30 sessions"
-        right={<MockBadge env={macro} />}
-      />
-
-      <DataTable>
-        <thead>
-          <tr>
-            <th style={{ textAlign: 'left' }}>MARKET</th>
-            <th style={{ textAlign: 'right' }}>LEVEL</th>
-            <th style={{ textAlign: 'left' }}>VS SETAHUN TERAKHIR</th>
-            <th style={{ textAlign: 'right' }}>1D</th>
-            <th style={{ textAlign: 'right' }}>5D</th>
-            <th style={{ textAlign: 'right' }}>30D</th>
-            <th style={{ textAlign: 'left' }}>1Y</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.key}>
-              <td style={{ whiteSpace: 'nowrap' }}>
-                {r.label}
-                <span style={{ color: 'var(--dim)', marginLeft: 6, fontSize: 12 }}>
-                  {r.symbol}
-                </span>
-              </td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.level}</td>
-              <td style={{ fontSize: 12, color: r.raw.z1y !== null && Math.abs(r.raw.z1y) >= 2 ? 'var(--amber)' : 'var(--mut)', whiteSpace: 'nowrap' }}>
-                {zWordsShort(r.raw.z1y)}
-              </td>
-              <td style={{ textAlign: 'right', color: toneVar(signTone(r.raw.change1dPct)) }}>
-                {r.change1d}
-              </td>
-              <td style={{ textAlign: 'right', color: toneVar(signTone(r.raw.change5dPct)) }}>
-                {r.change5d}
-              </td>
-              <td style={{ textAlign: 'right', color: toneVar(signTone(r.raw.change30dPct)) }}>
-                {r.change30d}
-              </td>
-              <td>
-                <MiniSpark
-                  fmt={(v: number) => (r.raw.kind === 'rate' ? `${v.toFixed(2)}%` : v.toLocaleString('en-US', { maximumFractionDigits: 2 }))}
-                  points={r.points}
-                  stroke={r.raw.change30dPct >= 0 ? 'var(--up)' : 'var(--down)'}
-                />
-              </td>
-            </tr>
+      <PanelHeader title="Papan pasar" note="harian · Yahoo Finance" right={<MockBadge env={macro} />} />
+      <div style={{ position: 'relative', zIndex: 4, padding: '0 14px 14px', overflowX: 'auto' }}>
+        <div style={{ minWidth: 860, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, padding: '0 12px 8px', fontSize: 13, color: 'var(--dim)' }}>
+            <span>Pasar</span>
+            <span style={{ textAlign: 'right' }}>Terakhir</span>
+            <span style={{ textAlign: 'right' }}>1 hari</span>
+            <span style={{ textAlign: 'right' }}>5 hari</span>
+            <span style={{ textAlign: 'right' }}>30 hari</span>
+            <span>Setahun</span>
+            <span>Korelasi dengan BTC</span>
+          </div>
+          {ordered.map(([g, rows]) => (
+            <div key={g} style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '14px 12px 6px', fontSize: 14, fontWeight: 600, color: 'var(--mut)' }}>{g}</div>
+              {rows.map((s) => (
+                <div key={s.key} className="ember-row" style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, alignItems: 'center', padding: 12, fontSize: 15 }}>
+                  <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+                    <span>{marketName(s)}</span>
+                    <span style={{ fontSize: 12, color: 'var(--dim)' }}>{s.symbol}</span>
+                  </span>
+                  <span style={{ textAlign: 'right', fontWeight: 600 }} data-tip={`Level vs setahun terakhir: ${zWordsShort(s.z1y).toLowerCase()}`}>
+                    {fmtLevel(s)}
+                  </span>
+                  <span style={{ textAlign: 'right', color: chgColor(s.change1dPct) }}>{fmtChg(s.change1dPct)}</span>
+                  <span style={{ textAlign: 'right', color: chgColor(s.change5dPct) }}>{fmtChg(s.change5dPct)}</span>
+                  <span style={{ textAlign: 'right', color: chgColor(s.change30dPct) }}>{fmtChg(s.change30dPct)}</span>
+                  <MiniSpark
+                    fmt={(v: number) => (s.kind === 'rate' ? `${v.toFixed(2)}%` : v.toLocaleString('en-US', { maximumFractionDigits: 2 }))}
+                    points={s.points}
+                    stroke={s.change30dPct >= 0 ? 'var(--accent)' : '#b8663a'}
+                  />
+                  <CorrBar r={s.corr30d} />
+                </div>
+              ))}
+            </div>
           ))}
-        </tbody>
-      </DataTable>
-
-      <div style={{ padding: '10px 12px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {d.missing.length > 0 ? (
-          <p
-            style={{
-              margin: 0,
-              fontSize: 12,
-              color: 'var(--amber)',
-            }}
-          >
-            UNAVAILABLE UPSTREAM: {d.missing.join(' · ')}
-          </p>
-        ) : null}
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            lineHeight: 1.55,
-            color: 'var(--dim)',
-          }}
-        >
-          {YAHOO_NOTE}
-        </p>
+        </div>
+        {d.missing.length > 0 ? <p style={{ margin: '10px 12px 0', fontSize: 12.5, color: 'var(--amber)' }}>Tidak tersedia: {d.missing.join(' · ')}</p> : null}
       </div>
-
       <SourceFootnote env={macro} />
     </Panel>
   );
