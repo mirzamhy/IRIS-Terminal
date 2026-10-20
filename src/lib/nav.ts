@@ -14,7 +14,8 @@ export type SectionKey =
   | 'forecast'
   | 'chain'
   | 'sentiment'
-  | 'macro';
+  | 'macro'
+  | 'strategy';
 
 export type NavGroup = 'Dashboard' | 'Market' | 'Evidence' | 'Model';
 
@@ -45,6 +46,16 @@ export const SECTIONS: Section[] = [
     group: 'Dashboard',
     icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
     subs: [{ slug: null, label: 'SUMMARY' }],
+  },
+  {
+    key: 'strategy',
+    label: 'Strategy',
+    title: 'STRATEGY',
+    blurb: 'Checklist of every signal · assistant',
+    group: 'Dashboard',
+    icon: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+    // 2026-10-21: one page that scores every signal bull / bear / neutral and explains it.
+    subs: [{ slug: null, label: 'STRATEGY' }],
   },
   {
     key: 'quant',

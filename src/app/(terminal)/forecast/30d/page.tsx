@@ -3,12 +3,12 @@ import { getMonthlyForecast } from '@/lib/features/monthlyForecast';
 import { MonthlyFan } from '@/components/features/monthly/MonthlyFan';
 import { MonthlyRange } from '@/components/features/monthly/MonthlyRange';
 import { MonthlyAccuracy } from '@/components/features/monthly/MonthlyAccuracy';
-import { MonthlyForwardPanel } from '@/components/features/forward/MonthlyForwardPanel';
 
 /**
  * Timothy's 30-day Monte Carlo (motmots/iris-monthly-forecast). Nothing is
  * computed on request: the worker writes one run a week; the 30 s revalidate
- * (the layout's value) only picks a new run up promptly.
+ * (the layout's value) only picks a new run up promptly. Forward validation
+ * lives on the weekly tab only (2026-10-21).
  */
 export const revalidate = 30;
 
@@ -29,9 +29,6 @@ export default async function MonthlyForecastPage() {
             <MonthlyAccuracy fc={fc} />
           </div>
         </section>
-        <div className="rise" style={{ ['--i' as string]: 5 }}>
-          <MonthlyForwardPanel fc={fc} />
-        </div>
       </LiveOnly>
     </div>
   );

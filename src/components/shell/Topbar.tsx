@@ -20,13 +20,14 @@ export interface TickerState {
 /** Short names for the pill navigation; the full name stays the page title. */
 const NAV_LABEL: Record<string, string> = {
   overview: 'Overview',
+  strategy: 'Strategy',
   forecast: 'Forecast',
   quant: 'Quant',
   chain: 'On-chain',
   macro: 'Macro',
   sentiment: 'Sentiment',
 };
-const NAV_ORDER = ['overview', 'forecast', 'quant', 'chain', 'macro', 'sentiment'];
+const NAV_ORDER = ['overview', 'forecast', 'quant', 'chain', 'macro', 'sentiment', 'strategy'];
 
 /**
  * The Ember top bar: the IRIS mark, one pill row for every section, the

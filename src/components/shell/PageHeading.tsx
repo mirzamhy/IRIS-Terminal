@@ -10,6 +10,7 @@ const LEDE: Record<string, { title: string; lede: string }> = {
   quant: { title: 'Quant', lede: 'The calendar, the four-year halving rhythm and the long-run power-law lane.' },
   chain: { title: 'On-chain', lede: 'Where the coins and the money are actually moving.' },
   macro: { title: 'Macro', lede: 'The US economy and the markets that move with bitcoin.' },
+  strategy: { title: 'Strategy', lede: 'Every signal on one checklist, and an assistant that explains today in plain words.' },
   sentiment: { title: 'Global sentiment', lede: 'How the crowd, the headlines and the world feel about bitcoin right now.' },
 };
 
