@@ -59,16 +59,6 @@ export function CorridorNow({ pl }: { pl: Envelope<PowerLawData> }) {
               </span>
             ))}
           </div>
-          <div style={{ marginTop: 14, fontSize: 13, color: 'var(--dim)', lineHeight: 1.5 }}>
-            Kemiringan garis (eksponen b) ikut bergeser saat data bertambah:{' '}
-            {d.bHistory.map((h, i) => (
-              <span key={h.refit}>
-                {i ? ' → ' : ''}
-                {i === d.bHistory.length - 1 ? 'sekarang' : h.refit.slice(0, 4)} <b style={{ color: 'var(--mut)' }}>{h.b.toFixed(2)}</b>
-              </span>
-            ))}
-            . Itu sebabnya persentil dihitung walk-forward.
-          </div>
         </div>
         <div style={{ background: 'var(--sunk)', borderRadius: 18, padding: 18 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--txt)', marginBottom: 8 }}>

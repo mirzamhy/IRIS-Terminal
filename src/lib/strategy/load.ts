@@ -10,7 +10,8 @@ import { getMonthlyForecast } from '@/lib/features/monthlyForecast';
 import { getSentiment } from '@/lib/features/sentiment';
 import { getSocialSentiment } from '@/lib/features/socialSentiment';
 import { getFearGreed } from '@/lib/features/fearGreed';
-import { getIndicators } from '@/lib/features/indicators';
+import { getWeeklyTech } from '@/lib/features/weeklyTech';
+import { getValuation } from '@/lib/features/valuation';
 import { getMacroCountry } from '@/lib/features/macroCountry';
 import { getMacroMarkets } from '@/lib/features/macroMarkets';
 import { getMacroCalendar } from '@/lib/features/macroCalendar';
@@ -51,13 +52,14 @@ function take<T>(env: Envelope<T>, label: string, missing: string[], make: (d: T
 }
 
 export async function loadStrategy(): Promise<StrategyState> {
-  const [weekly, monthly, news, social, fg, ind, macro, markets, cal, etf, flows, pos, pl, cycle, season, snap] = await Promise.all([
+  const [weekly, monthly, news, social, fg, tech, val, macro, markets, cal, etf, flows, pos, pl, cycle, season, snap] = await Promise.all([
     getWeeklyForecast({ symbol: 'BTC-USD' }),
     getMonthlyForecast({}),
     getSentiment({ days: 7 }),
     getSocialSentiment({ days: 30 }),
     getFearGreed({ limit: 2 }),
-    getIndicators({ symbol: 'BTC-USD', interval: '1d', limit: 365 }),
+    getWeeklyTech({ symbol: 'BTC-USD' }),
+    getValuation({ days: 365 }),
     getMacroCountry({ countries: ['US'] }),
     getMacroMarkets({ range: '1y' }),
     getMacroCalendar({}),
@@ -76,12 +78,15 @@ export async function loadStrategy(): Promise<StrategyState> {
     ...take(news, 'Sentimen berita', missing, C.newsItem),
     ...take(social, 'Sentimen sosial', missing, C.socialItem),
     ...take(fg, 'Fear & Greed', missing, C.fearGreedItem),
-    ...take(ind, 'Teknikal harian', missing, C.technicalItem),
-    ...take(macro, 'Fase ekonomi AS', missing, (d) => (d[0] ? C.regimeItem(d[0]) : null)),
+    ...take(tech, 'Teknikal weekly', missing, C.weeklyTechItems),
+    ...take(macro, 'Fase ekonomi AS', missing, (d) =>
+      d[0] ? [C.regimeItem(d[0]), C.inflationItem(d[0]), C.nfpItem(d[0])].filter((x): x is C.CheckItem => x !== null) : null,
+    ),
     ...take(markets, 'Pasar global', missing, (d) => [C.dollarItem(d), C.stocksItem(d)].filter((x): x is C.CheckItem => x !== null)),
     ...take(etf, 'Arus ETF spot', missing, C.etfItem),
     ...take(flows, 'Arus bursa', missing, C.exchangeItem),
     ...take(pos, 'Posisi futures', missing, C.positioningItem),
+    ...take(val, 'MVRV & SOPR', missing, (d) => [C.mvrvItem(d), C.soprItem(d)].filter((x): x is C.CheckItem => x !== null)),
     ...take(pl, 'Koridor power-law', missing, C.powerLawItem),
     ...take(cycle, 'Siklus halving', missing, C.cycleItem),
     ...take(season, 'Musiman', missing, C.seasonalityItem),

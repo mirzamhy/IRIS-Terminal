@@ -333,6 +333,7 @@ export function ReserveMini({ flows }: { flows: Envelope<ChainFlowsData> }) {
             {leaving ? '−' : '+'}
             {btc(Math.abs(f.netflowBtc))}
           </span>
+          <span style={{ fontSize: 13, color: 'var(--dim)' }}>arus bersih 7 hari</span>
         </div>
         <span style={{ fontSize: 14, color: '#e9ddd2' }}>
           {leaving ? 'Lebih banyak BTC keluar dari bursa: biasanya untuk disimpan.' : 'Lebih banyak BTC masuk ke bursa: biasanya disiapkan untuk dijual.'}
@@ -403,7 +404,8 @@ export function TransferRow({ t, wide, nowSec }: { t: FlowTransfer; wide?: boole
 
 /** The largest recent transfers touching the tracked addresses, live: re-read every 30 s, new rows flash. */
 export function LargeTransfers({ flows, limit = 8 }: { flows: Envelope<ChainFlowsData>; limit?: number }) {
-  const rows = [...flows.data.transfers].sort((a, b) => b.amountBtc - a.amountBtc).slice(0, limit);
+  // Newest first (unconfirmed, blockTime 0, on top): the wire, not a leaderboard.
+  const rows = [...flows.data.transfers].sort((a, b) => (b.blockTime || Infinity) - (a.blockTime || Infinity)).slice(0, limit);
   const wide = limit > 5;
   return (
     <Panel style={{ height: '100%' }}>
@@ -412,7 +414,7 @@ export function LargeTransfers({ flows, limit = 8 }: { flows: Envelope<ChainFlow
           <h2 className="t-title" style={{ margin: 0, fontSize: wide ? 22 : 18 }}>
             Transfer besar
           </h2>
-          <span style={{ fontSize: 13, color: 'var(--dim)' }}>Terbesar dari alamat bursa yang dilacak</span>
+          <span style={{ fontSize: 13, color: 'var(--dim)' }}>≥50 BTC, 7 hari terakhir, terbaru di atas</span>
         </span>
         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <LivePill renderedAt={readAt(flows)} />

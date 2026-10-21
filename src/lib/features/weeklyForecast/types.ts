@@ -62,6 +62,8 @@ export interface WeeklyForecastData {
   label: ForecastDirection;
   confidence: number;
   range: { min: number; max: number };
+  /** Close the range is centred on (the close at the signal's data date). */
+  anchorClose?: number;
   /** Signed weighted contributions that produced `label`. */
   drivers: ForecastDriver[];
   /** The composite score (sum of driver contributions). */

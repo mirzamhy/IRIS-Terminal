@@ -67,16 +67,16 @@ export function MonthlyPreview({ fc }: { fc: Envelope<MonthlyForecastData> }) {
             {fmtDay(d.asOf)}
           </text>
           <text x={W - 2} y={14} textAnchor="end" fill="var(--dim)" fontSize={12}>
-            95th
+            Tinggi
           </text>
           <text x={W - 2} y={H - 2} textAnchor="end" fill="var(--dim)" fontSize={12}>
-            5th
+            Rendah
           </text>
         </svg>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="iris-inset" style={{ flex: 1, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Rendah (5th)</span>
+            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Rendah</span>
             <span style={{ fontSize: 19, fontWeight: 600 }}>{k(end.p5)}</span>
           </div>
           <div
@@ -87,7 +87,7 @@ export function MonthlyPreview({ fc }: { fc: Envelope<MonthlyForecastData> }) {
             <span style={{ fontSize: 19, fontWeight: 600 }}>{k(end.p50)}</span>
           </div>
           <div className="iris-inset" style={{ flex: 1, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Tinggi (95th)</span>
+            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Tinggi</span>
             <span style={{ fontSize: 19, fontWeight: 600 }}>{k(end.p95)}</span>
           </div>
         </div>

@@ -1,5 +1,9 @@
 /**
- * Whale Alert ingestion. Pull recent transfers, upsert them, prune old ones.
+ * Whale ingestion. With `WHALE_ALERT_API_KEY`: Whale Alert (every chain).
+ * Without it (the free tier is now a 7-day trial): a keyless scan of the
+ * newest Bitcoin blocks for transfers of 100 BTC or more (`sources/blockWhales.ts`).
+ *
+ * Original note, Whale Alert ingestion. Pull recent transfers, upsert them, prune old ones.
  *
  * This is the repository's only writer. It exists because the Whale Alert free
  * tier has no history: a single call sees the last ~10 minutes, so the feed's
@@ -16,6 +20,8 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getWhaleTransactions, isWhaleAlertEnabled } from '@/lib/sources/whaleAlert';
+import { getBlockWhales } from '@/lib/sources/blockWhales';
+import { getSpot } from '@/lib/sources/coinbase';
 import { isAuthorizedCron } from '@/lib/cronAuth';
 import { reportIngestFailure, reportIngestSuccess } from '@/lib/supabase/sourceStatusWriter';
 
@@ -39,13 +45,6 @@ async function ingest(request: Request) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
 
-  if (!isWhaleAlertEnabled()) {
-    return NextResponse.json(
-      { ok: false, error: 'WHALE_ALERT_API_KEY not set' },
-      { status: 503 },
-    );
-  }
-
   const db = getSupabaseAdmin();
   if (!db) {
     return NextResponse.json(
@@ -56,7 +55,7 @@ async function ingest(request: Request) {
 
   let transfers;
   try {
-    transfers = await getWhaleTransactions();
+    transfers = isWhaleAlertEnabled() ? await getWhaleTransactions() : await getBlockWhales((await getSpot('BTC-USD')).price);
   } catch (err) {
     // Report the upstream failure rather than swallowing it: a scheduler that
     // sees 502 can alert, while a silent 200 with zero rows looks like a quiet

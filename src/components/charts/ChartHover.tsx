@@ -11,6 +11,19 @@ export interface HoverPoint {
 }
 
 /**
+ * Axis text drawn as HTML over the chart, at a viewBox position. SVG <text>
+ * inside a `preserveAspectRatio="none"` chart stretches with the box; HTML
+ * labels keep their shape at any width.
+ */
+export interface ChartLabel {
+  x: number;
+  y: number;
+  text: string;
+  /** Which edge of the text sits on `x`. */
+  anchor?: 'start' | 'middle' | 'end';
+}
+
+/**
  * Wraps a hand-drawn SVG chart with a hover layer: a vertical crosshair at the
  * nearest point and a tooltip with its date and values (curation 2026-10-18:
  * every chart must show a date and value under the cursor).
@@ -27,6 +40,7 @@ export function ChartHover({
   preserveAspectRatio = 'none',
   svgStyle,
   ariaLabel,
+  labels,
 }: {
   viewW: number;
   viewH: number;
@@ -37,6 +51,7 @@ export function ChartHover({
   preserveAspectRatio?: string;
   svgStyle?: CSSProperties;
   ariaLabel?: string;
+  labels?: ChartLabel[];
 }) {
   const [idx, setIdx] = useState<number | null>(null);
   const p = idx === null ? null : points[idx];
@@ -75,6 +90,24 @@ export function ChartHover({
           </g>
         ) : null}
       </svg>
+      {labels?.map((l, i) => (
+        <span
+          key={i}
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: `${(l.x / viewW) * 100}%`,
+            top: `${(l.y / viewH) * 100}%`,
+            transform: `translate(${l.anchor === 'end' ? '-100%' : l.anchor === 'middle' ? '-50%' : '0'}, -50%)`,
+            fontSize: 12,
+            color: 'var(--dim)',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}
+        >
+          {l.text}
+        </span>
+      ))}
       {p ? (
         <div
           role="tooltip"

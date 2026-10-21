@@ -4,6 +4,7 @@ import type { WeeklyForecastData } from '@/lib/features/weeklyForecast';
 import { forecastTargetDate, toWeeklyForecastLabels } from '@/lib/features/weeklyForecast';
 import { fmtDay } from '@/lib/dates';
 import { softCase } from '@/lib/softCase';
+import { ForecastFlip } from './ForecastFlip';
 
 export interface DirectionCardProps {
   forecast: Envelope<WeeklyForecastData>;
@@ -30,9 +31,13 @@ export function DirectionCard({ forecast }: DirectionCardProps) {
   const tBullPct = clf ? clf.tBull * 100 : 0;
   const target = clf ? forecastTargetDate(clf.dataAsOf) : '';
   const beatsBase = !!clf?.track && clf.track.precision > clf.track.baseRate;
+  const flip =
+    isClassifier && clf && f.anchorClose
+      ? { label: f.label, min: f.range.min, max: f.range.max, anchor: f.anchorClose, dataAsOf: clf.dataAsOf }
+      : null;
 
-  return (
-    <Panel>
+  const card = (
+    <Panel style={{ height: '100%' }}>
       <div className="ember-halo" aria-hidden="true" style={{ top: -280, right: -200 }} />
       <div style={{ position: 'relative', zIndex: 4, padding: 32, display: 'flex', flexDirection: 'column', gap: 28 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -57,14 +62,14 @@ export function DirectionCard({ forecast }: DirectionCardProps) {
           <div style={{ display: 'flex', gap: 36 }}>
             {labels.confidencePct ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }} title="Presisi sinyal ini di data uji (track record), bukan skor mentah model.">
-                <span style={{ fontSize: 13, color: 'var(--dim)' }}>Sinyal ini benar</span>
+                <span style={{ fontSize: 13, color: 'var(--dim)' }}>Winrate</span>
                 <span className="t-title" style={{ fontSize: 32 }}>
                   {labels.confidencePct}
                 </span>
               </div>
             ) : null}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }} title="Skor model, belum dikalibrasi: hanya dibandingkan dengan ambang.">
-              <span style={{ fontSize: 13, color: 'var(--dim)' }}>{isClassifier ? 'Skor P(naik)' : 'Kekuatan aturan'}</span>
+              <span style={{ fontSize: 13, color: 'var(--dim)' }}>{isClassifier ? 'Probability' : 'Kekuatan aturan'}</span>
               <span className="t-title" style={{ fontSize: 32 }}>
                 {labels.pUpPct}
               </span>
@@ -117,32 +122,20 @@ export function DirectionCard({ forecast }: DirectionCardProps) {
               {fmtK(f.range.min)} – {fmtK(f.range.max)}
             </span>
           </div>
-          {clf?.track ? (
-            <div className="iris-inset" style={{ flex: '1 1 180px', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 13, color: 'var(--dim)' }}>Tebakan dasar</span>
-              <span style={{ fontSize: 20, fontWeight: 600 }}>
-                {labels.baseRatePct} <span style={{ fontSize: 14, color: beatsBase ? '#ffb27a' : 'var(--down)' }}>{beatsBase ? 'dikalahkan' : 'tidak dikalahkan'}</span>
-              </span>
-            </div>
-          ) : null}
-          {clf ? (
-            <div className="iris-inset" style={{ flex: '1 1 180px', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 13, color: 'var(--dim)' }}>Model dilatih sampai</span>
-              <span style={{ fontSize: 20, fontWeight: 600 }}>{fmtDay(clf.modelTrainEnd)}</span>
-            </div>
-          ) : null}
         </div>
 
         {isClassifier && labels.confidencePct ? (
           <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: '#e9ddd2' }} data-tip={labels.f1Summary}>
-            Setiap kali model memberi sinyal {clf?.signal} di data uji, sinyal itu benar {labels.confidencePct} kali ({labels.confidenceN} sinyal di data uji,{' '}
+            Winrate: setiap kali model memberi sinyal {clf?.signal} di data uji, sinyal itu benar {labels.confidencePct} kali ({labels.confidenceN} sinyal di data uji,{' '}
             {labels.confidenceWindow}). Tanpa model, arah yang sama terjadi {labels.baseRatePct} kali, jadi sinyal ini{' '}
-            {beatsBase ? 'lebih sering benar daripada tebakan dasar' : 'tidak lebih baik dari tebakan dasar'}. Skor P(naik) bukan peluang: angka itu hanya dibandingkan
-            dengan ambang.
+            {beatsBase ? 'lebih sering benar daripada tebakan dasar' : 'tidak lebih baik dari tebakan dasar'}. Probability adalah skor mentah model (belum
+            dikalibrasi): yang menentukan arah adalah posisinya terhadap ambang. Klik kartu untuk melihat candle prediksi.
           </p>
         ) : null}
       </div>
       <SourceFootnote env={forecast} />
     </Panel>
   );
+
+  return <ForecastFlip front={card} forecast={flip} />;
 }

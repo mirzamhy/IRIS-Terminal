@@ -12,14 +12,16 @@
  * FRED needs `FRED_API_KEY`. With no key `fred.*` throws on the first call,
  * `defineFeature` catches it, and the panel shows MOCK with the unlock note.
  */
-import { getLatestAndZScore, type FredUnits } from '@/lib/sources/fred';
-import type { MacroMetric, MacroCountryArgs } from './types';
+import { getLatestAndZScore, getObservations, type FredFrequency, type FredUnits } from '@/lib/sources/fred';
+import type { MacroIndicator, MacroMetric, MacroCountryArgs } from './types';
 
 interface SeriesRef {
   id: string;
   units: FredUnits;
   /** Oldest acceptable latest observation, by publication frequency. */
   maxAgeDays: number;
+  /** Aggregate a daily series to monthly, so a 24-point z-score spans two years. */
+  frequency?: FredFrequency;
 }
 
 const MONTHLY = 120;
@@ -72,13 +74,86 @@ export function staleSeries(
 const FRED_SERIES: Record<string, SeriesMap> = {
   US: {
     cpi: lvl('CPIAUCSL'),
-    rate: lvl('FEDFUNDS'),
+    // Upper bound of the target range, the same series the FOMC release card
+    // reads (was FEDFUNDS, the monthly average effective rate, which disagreed).
+    rate: { id: 'DFEDTARU', units: 'lin', maxAgeDays: MONTHLY, frequency: 'm' },
     growth: lvl('A191RL1Q225SBEA', QUARTERLY), // already a rate: real GDP, QoQ annualised %
     inflation: yoy('CPILFESL'), // core CPI, % y/y
   },
 };
 
 const DEFAULT_COUNTRIES = ['US'];
+
+/**
+ * The US indicator set. CPI y/y, NFP and the Fed upper bound use exactly the
+ * series and transforms of the macro release card (`macroCalendar/live.ts`),
+ * so the two cards always agree.
+ */
+interface IndicatorDef {
+  key: string;
+  label: string;
+  what: string;
+  id: string;
+  units: FredUnits;
+  unit: MacroIndicator['unit'];
+  /** Daily / weekly series: history aggregated monthly, latest from the raw series. */
+  daily?: boolean;
+  quarterly?: boolean;
+  /** Multiply values (ICSA is in persons; shown in thousands). */
+  scale?: number;
+}
+
+export const US_INDICATORS: IndicatorDef[] = [
+  { key: 'cpi', label: 'Inflasi CPI', what: 'headline, per tahun', id: 'CPIAUCSL', units: 'pc1', unit: '%' },
+  { key: 'core_cpi', label: 'Inflasi inti CPI', what: 'tanpa makanan & energi, per tahun', id: 'CPILFESL', units: 'pc1', unit: '%' },
+  { key: 'core_pce', label: 'Inflasi inti PCE', what: 'acuan The Fed, per tahun', id: 'PCEPILFE', units: 'pc1', unit: '%' },
+  { key: 'fed', label: 'Suku bunga The Fed', what: 'batas atas target', id: 'DFEDTARU', units: 'lin', unit: '%', daily: true },
+  { key: 'nfp', label: 'NFP', what: 'tambahan lapangan kerja, ribu', id: 'PAYEMS', units: 'chg', unit: 'k' },
+  { key: 'unrate', label: 'Pengangguran', what: 'tingkat pengangguran', id: 'UNRATE', units: 'lin', unit: '%' },
+  { key: 'claims', label: 'Klaim pengangguran', what: 'klaim awal mingguan, ribu', id: 'ICSA', units: 'lin', unit: 'k', daily: true, scale: 0.001 },
+  { key: 'gdp', label: 'Pertumbuhan GDP', what: 'riil, kuartal disetahunkan', id: 'A191RL1Q225SBEA', units: 'lin', unit: '%', quarterly: true },
+  { key: 'retail', label: 'Penjualan ritel', what: 'perubahan bulanan', id: 'RSAFS', units: 'pch', unit: '%' },
+  { key: 'y10', label: 'Yield US 10 tahun', what: 'obligasi pemerintah', id: 'DGS10', units: 'lin', unit: '%', daily: true },
+  { key: 'm2', label: 'M2 money supply', what: 'per tahun', id: 'M2SL', units: 'pc1', unit: '%' },
+];
+
+async function loadIndicator(d: IndicatorDef): Promise<MacroIndicator> {
+  const n = d.quarterly ? 12 : 25;
+  const k = d.scale ?? 1;
+  const [hist, raw] = await Promise.all([
+    getObservations(d.id, n, d.units, d.daily ? 'm' : null),
+    d.daily ? getObservations(d.id, 2, d.units) : Promise.resolve(null),
+  ]);
+  if (hist.length < 2) throw new Error(`fred ${d.id}: ${hist.length} observations`);
+  const history = hist.map((o) => ({ date: o.date, value: o.value * k })).reverse();
+  const latestObs = raw?.[0] ?? hist[0];
+  const latest = latestObs.value * k;
+  const vals = history.map((h) => h.value);
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const sd = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length);
+  return {
+    key: d.key,
+    label: d.label,
+    what: d.what,
+    unit: d.unit,
+    latest,
+    // Previous period: last month's (or quarter's) value, also for daily series.
+    previous: history[history.length - 2].value,
+    date: latestObs.date,
+    z: sd === 0 ? 0 : (latest - mean) / sd,
+    history,
+    seriesId: d.id,
+  };
+}
+
+async function loadIndicators(): Promise<MacroIndicator[]> {
+  const settled = await Promise.allSettled(US_INDICATORS.map(loadIndicator));
+  return settled.flatMap((r, i) => {
+    if (r.status === 'fulfilled') return [r.value];
+    console.warn(`[macroCountry] ${US_INDICATORS[i].id}:`, r.reason instanceof Error ? r.reason.message : r.reason);
+    return [];
+  });
+}
 
 const zWindow = (ref: SeriesRef) => (ref.maxAgeDays === QUARTERLY ? Z_WINDOW_QUARTERLY : Z_WINDOW_MONTHLY);
 
@@ -98,7 +173,7 @@ export async function fetchMacroCountry({ countries = DEFAULT_COUNTRIES }: Macro
     const s = FRED_SERIES[country];
     const [cpi, rate, growth, inflation] = await Promise.all([
       getLatestAndZScore(s.cpi.id, zWindow(s.cpi), s.cpi.units),
-      getLatestAndZScore(s.rate.id, zWindow(s.rate), s.rate.units),
+      getLatestAndZScore(s.rate.id, zWindow(s.rate), s.rate.units, s.rate.frequency ?? null),
       getLatestAndZScore(s.growth.id, zWindow(s.growth), s.growth.units),
       getLatestAndZScore(s.inflation.id, zWindow(s.inflation), s.inflation.units),
     ]);
@@ -120,8 +195,12 @@ export async function fetchMacroCountry({ countries = DEFAULT_COUNTRIES }: Macro
     // date is an honest age for the panel.
     asOfDates.push(cpi.asOf, rate.asOf, growth.asOf, inflation.asOf);
 
+    const indicators = country === 'US' ? await loadIndicators() : undefined;
+    // Daily series (Fed target, 10Y, claims) carry the newest observation.
+    indicators?.forEach((x) => asOfDates.push(x.date));
     rows.push({
       country,
+      indicators,
       cpi: cpi.latest,
       rate: rate.latest,
       growth: growth.latest,

@@ -9,7 +9,7 @@
 const KEEP = new Set([
   'BTC', 'ETH', 'ETF', 'ETFS', 'RSI', 'MACD', 'EMA', 'EMA5', 'EMA21', 'SMA', 'ATR', 'US', 'USD', 'USDT',
   'FOMC', 'CPI', 'NFP', 'GDP', 'PCE', 'PPI', 'DXY', 'VIX', 'FRED', 'OB', 'OS', 'OI', 'DVOL', 'FHS',
-  'GARCH', 'VRP', 'RSS', 'API', 'ATH', 'UTC', 'WIB', 'L/S', 'P50', 'P10', 'P90', 'P5', 'P95', 'P25', 'P75',
+  'GARCH', 'VRP', 'RSS', 'API', 'ATH', 'UTC', 'WIB', 'L/S', 'P50', 'P10', 'P90', 'P5', 'P95', 'P25', 'P75', 'MVRV', 'SOPR',
   'IBIT', 'FBTC', 'GBTC', 'AI', 'AS', 'ID', 'EU', 'JP', 'GB', 'MCAP', 'IRIS', 'SEC', 'ECB', 'CFTC', 'M2',
   'ETH/USD', 'BTC/USD', 'T+1', 'XGBOOST',
 ]);

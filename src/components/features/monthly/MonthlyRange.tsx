@@ -61,14 +61,14 @@ export function MonthlyRange({ fc }: { fc: Envelope<MonthlyForecastData> }) {
           <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 14, padding: '0 12px 8px', fontSize: 13, color: 'var(--dim)', minWidth: 600 }}>
             <span>Hari ke</span>
             <span>Kisaran</span>
-            <span>Rendah – tinggi</span>
+            <span>Separuh jalur</span>
             <span style={{ textAlign: 'right' }}>Tengah</span>
           </div>
           {rows.map((b) => (
             <div
               key={b.step}
               className="ember-row"
-              data-tip={`5th ${k(b.p5)} · 25th ${k(b.p25)} · median ${k(b.p50)} · 75th ${k(b.p75)} · 95th ${k(b.p95)}`}
+              data-tip={`Rendah ${k(b.p5)} · separuh jalur ${k(b.p25)} – ${k(b.p75)} · tengah ${k(b.p50)} · tinggi ${k(b.p95)}`}
               style={{ display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: 12, fontSize: 15, minWidth: 600 }}
             >
               <span style={{ display: 'flex', flexDirection: 'column' }}>

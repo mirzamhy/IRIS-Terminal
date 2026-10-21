@@ -27,6 +27,7 @@ const pct = (x: number) => `${Math.round(x * 100)}%`;
 export const STATUS_TONE: Record<CycleStatus, Tone> = {
   'MENUNGGU TOP': 'amber',
   'TOP SEMENTARA': 'down',
+  'TOP FINAL': 'down',
   'BOTTOM TERKONFIRMASI': 'up',
   'SIKLUS SELESAI': 'blue',
 };
@@ -48,7 +49,7 @@ export const METHOD_WORDS: Record<Method, string> = {
 /** Methodology note (hover), built from the config. */
 export const CYCLE_METHOD_NOTE = [
   `Top final: puncak tertinggi yang diikuti turun ≥${pct(C.MAJOR_TOP_DRAWDOWN)} lalu ditembus lagi.`,
-  `Top sementara: puncak tertinggi siklus berjalan setelah harga turun ≥${pct(C.TOP_CONFIRM_DRAWDOWN)} darinya.`,
+  `Top sementara: puncak tertinggi siklus berjalan setelah harga turun ≥${pct(C.TOP_CONFIRM_DRAWDOWN)} darinya; jadi final begitu turun ≥${pct(C.TOP_FINAL_DRAWDOWN)}.`,
   `Bottom: close terendah setelah top; terkonfirmasi setelah naik ≥+${pct(C.BOTTOM_CONFIRM_RISE)} tanpa close lebih rendah.`,
   `Rentang: distribusi t (df = n−1, skala = sd·√(1+1/n)), ditampilkan ${pct(C.SHOWN_RANGE[1] - C.SHOWN_RANGE[0])}.`,
   `Halving: timestamp blok setiap ${C.HALVING_INTERVAL.toLocaleString('en-US')} blok; estimasi = sisa blok × menit per blok.`,

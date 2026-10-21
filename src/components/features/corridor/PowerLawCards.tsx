@@ -164,12 +164,6 @@ export function PowerLawHero({ pl }: { pl: Envelope<PowerLawData> }) {
               {usd(d.priceNow)}
             </span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Eksponen b</span>
-            <span className="t-title" style={{ fontSize: 28 }}>
-              {d.fit.b.toFixed(2)}
-            </span>
-          </div>
         </div>
         <ZoneGauge pct={d.today.pct} />
         <BandTiles bands={d.today.bands} />

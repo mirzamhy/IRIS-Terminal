@@ -3,7 +3,7 @@ import { getFearGreed } from '@/lib/features/fearGreed';
 import { getConfluence } from '@/lib/features/confluence';
 import { getBtcSnapshot } from '@/lib/features/snapshot';
 import { getOhlcv } from '@/lib/features/ohlcv';
-import { getIndicators } from '@/lib/features/indicators';
+import { getWeeklyTech } from '@/lib/features/weeklyTech';
 import { getSentiment } from '@/lib/features/sentiment';
 import { getNews } from '@/lib/features/news';
 import { getSocialSentiment } from '@/lib/features/socialSentiment';
@@ -35,14 +35,14 @@ export default async function OverviewPage({
   const tf = resolveTimeframe((await searchParams).tf);
   const { interval, limit } = TIMEFRAME_SPEC[tf];
 
-  const [weeklyForecast, fearGreed, confluence, snapshot, ohlcv, indicators, sentiment, newsData, social, events] =
+  const [weeklyForecast, fearGreed, confluence, snapshot, ohlcv, weeklyTech, sentiment, newsData, social, events] =
     await Promise.all([
       getWeeklyForecast({ symbol: 'BTC-USD' }),
       getFearGreed({ limit: 2 }),
       getConfluence({ symbol: 'BTC-USD' }),
       getBtcSnapshot({ symbol: 'BTC-USD' }),
       getOhlcv({ symbol: 'BTC-USD', interval, limit }),
-      getIndicators({ symbol: 'BTC-USD', interval, limit }),
+      getWeeklyTech({ symbol: 'BTC-USD' }),
       getSentiment({ days: 7 }),
       getNews({ limit: 10 }),
       getSocialSentiment({ days: 30 }),
@@ -50,7 +50,6 @@ export default async function OverviewPage({
     ]);
 
   const price = snapshot.isMock ? null : snapshot.data.last;
-  const lastClose = ohlcv.isMock || ohlcv.data.length === 0 ? null : ohlcv.data[ohlcv.data.length - 1].close;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
@@ -83,8 +82,8 @@ export default async function OverviewPage({
 
       <section className="ember-row3" aria-label="Evidence">
         <div className="rise" style={{ ['--i' as string]: 5 }}>
-          <LiveOnly env={indicators} title="TECHNICALS">
-            <TechReadout indicators={indicators} timeframe={tf} lastClose={lastClose} />
+          <LiveOnly env={weeklyTech} title="TECHNICALS">
+            <TechReadout tech={weeklyTech} />
           </LiveOnly>
         </div>
         <div className="rise" style={{ ['--i' as string]: 6 }}>

@@ -51,11 +51,16 @@ async function readLocalSignal(): Promise<ClfSignalRow | null> {
 async function classifierEnvelope(row: ClfSignalRow) {
   let candles;
   try {
-    candles = await coinbaseCandles('1d', 60, 'BTC-USD');
+    candles = await coinbaseCandles('1d', 90, 'BTC-USD');
   } catch {
     candles = await krakenCandles('1d', 'XBTUSD').catch(() => []);
   }
-  const closes = (candles ?? []).map((c) => c.close);
+  // The range is fixed at publish time: built from closes up to the signal's
+  // data date (`as_of`, the last closed daily candle), never today's live
+  // price, so Bawah / Tengah / Atas do not move during the week.
+  const cutoff = Date.parse(`${row.as_of}T00:00:00Z`) / 1000;
+  const upTo = (candles ?? []).filter((c) => !Number.isFinite(cutoff) || c.ts <= cutoff);
+  const closes = upTo.slice(-60).map((c) => c.close);
   return {
     data: rowToForecast(row, closes),
     asOf: row.created_at,

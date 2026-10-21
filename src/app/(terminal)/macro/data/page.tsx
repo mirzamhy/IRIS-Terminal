@@ -1,11 +1,10 @@
-import { LiveOnly } from '@/components/primitives';
+import { LiveOnly, Panel, PanelHeader, MockBadge, SourceFootnote } from '@/components/primitives';
 import { getMacroCountry } from '@/lib/features/macroCountry';
 import { COUNTRY_CODES, DEFAULT_COUNTRY, COUNTRIES } from '@/lib/nav';
 import { MacroMetrics } from '@/components/features/macro/MacroMetrics';
 import { getMacroCalendar } from '@/lib/features/macroCalendar';
-import { getMacroMarkets } from '@/lib/features/macroMarkets';
 import { MacroCalendar } from '@/components/features/macro/MacroCalendar';
-import { RegimeMini, MarketsMini } from '@/components/features/macro/MacroMini';
+import { MacroHistory } from '@/components/features/macro/MacroHistory';
 
 export const revalidate = 30;
 
@@ -13,6 +12,7 @@ function resolveCountry(raw: string | undefined): string {
   return raw && (COUNTRY_CODES as readonly string[]).includes(raw) ? raw : DEFAULT_COUNTRY;
 }
 
+/** Economic data only: the latest US prints, the release calendar, and each indicator's history. */
 export default async function MacroDataPage({
   searchParams,
 }: {
@@ -22,11 +22,8 @@ export default async function MacroDataPage({
   const country = resolveCountry(rawCountry);
   const label = COUNTRIES.find((c) => c.code === country)?.display ?? country;
 
-  const [macro, calendar, markets] = await Promise.all([
-    getMacroCountry({ countries: [country] }),
-    getMacroCalendar({}),
-    getMacroMarkets({ range: '1y' }),
-  ]);
+  const [macro, calendar] = await Promise.all([getMacroCountry({ countries: [country] }), getMacroCalendar({})]);
+  const indicators = (macro.data.find((x) => x.country === country) ?? macro.data[0])?.indicators ?? [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
@@ -42,18 +39,19 @@ export default async function MacroDataPage({
           </LiveOnly>
         </div>
       </section>
-      <section className="ember-row3" aria-label="Fase dan pasar">
-        <div className="rise" style={{ ['--i' as string]: 4, flex: '1 1 520px' }}>
-          <LiveOnly env={macro} title="FASE EKONOMI">
-            <RegimeMini macro={macro} country={country} />
+      {indicators.length ? (
+        <div className="rise" style={{ ['--i' as string]: 4 }}>
+          <LiveOnly env={macro} title="RIWAYAT DATA">
+            <Panel>
+              <PanelHeader title="Riwayat data AS" note="FRED · ±2 tahun" right={<MockBadge env={macro} />} />
+              <div style={{ position: 'relative', zIndex: 4, padding: '4px 26px 18px' }}>
+                <MacroHistory indicators={indicators} />
+              </div>
+              <SourceFootnote env={macro} />
+            </Panel>
           </LiveOnly>
         </div>
-        <div className="rise" style={{ ['--i' as string]: 5, flex: '1 1 520px' }}>
-          <LiveOnly env={markets} title="PASAR GLOBAL">
-            <MarketsMini markets={markets} />
-          </LiveOnly>
-        </div>
-      </section>
+      ) : null}
     </div>
   );
 }

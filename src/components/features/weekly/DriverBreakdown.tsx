@@ -8,9 +8,9 @@ export interface DriverBreakdownProps {
 }
 
 /**
- * The signals that actually produced the forecast, as bars that grow left
- * (pulls down) or right (pushes up) from a centre line. They are the real
- * contributions computed with the score and sum to it.
+ * Each model's probability this week, as bars that grow left (below the
+ * threshold) or right (above it) from a centre line; they sum to the score.
+ * Below: the 7-day volatility range, fixed at the signal's data date.
  */
 export function DriverBreakdown({ forecast }: DriverBreakdownProps) {
   const f = forecast.data;
@@ -24,7 +24,7 @@ export function DriverBreakdown({ forecast }: DriverBreakdownProps) {
 
   return (
     <Panel style={{ height: '100%' }}>
-      <PanelHeader title="What drives the call" note="Kontribusi ke skor" right={<MockBadge env={forecast} />} />
+      <PanelHeader title="What drives the call" note="Probability per model · tiap minggu" right={<MockBadge env={forecast} />} />
       <div style={{ position: 'relative', zIndex: 4, padding: '4px 14px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {f.drivers.map((d) => {
           const w = `${((Math.abs(d.contribution) / maxContribution) * 100).toFixed(1)}%`;
@@ -52,6 +52,9 @@ export function DriverBreakdown({ forecast }: DriverBreakdownProps) {
             </div>
           );
         })}
+        <div style={{ fontSize: 12.5, color: 'var(--dim)', padding: '2px 12px 6px', lineHeight: 1.5 }}>
+          Dua model XGBoost (Macro & Universal) masing-masing memberi probability naik dari data minggu ini; rata-ratanya dibanding ambang. Batang = jarak tiap model dari ambang.
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--dim)', padding: '4px 12px 0' }}>
           <span>Menarik turun</span>
           <span>
@@ -62,7 +65,9 @@ export function DriverBreakdown({ forecast }: DriverBreakdownProps) {
       </div>
 
       <div style={{ position: 'relative', zIndex: 4, padding: '16px 26px 8px' }}>
-        <div style={{ fontSize: 13, color: 'var(--dim)', marginBottom: 10 }}>Kisaran gejolak 7 hari (bukan prediksi arah atau besaran)</div>
+        <div style={{ fontSize: 13, color: 'var(--dim)', marginBottom: 10 }}>
+          Kisaran gejolak 7 hari · dikunci di close {f.classifier ? f.classifier.dataAsOf : 'terakhir'}, tidak berubah sepanjang minggu
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
           {(
             [

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
   AreaSeries,
@@ -11,6 +11,8 @@ import {
   LineSeries,
   PriceScaleMode,
   createChart,
+  createSeriesMarkers,
+  type SeriesMarker,
   type IChartApi,
   type ISeriesApi,
   type LogicalRange,
@@ -18,6 +20,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { bollingerSeries, emaSeries, macdSeries, rsiSeries, smaSeries, type Maybe } from '@/lib/quant/ta';
+import { findDivergences, stochSeries, type DivKind } from '@/lib/quant/weeklyTech';
 
 /**
  * The chart studio: a card's chart opened full screen, TradingView-style.
@@ -32,12 +35,24 @@ import { bollingerSeries, emaSeries, macdSeries, rsiSeries, smaSeries, type Mayb
 
 export type StudioSource =
   | { kind: 'btc'; interval?: BtcInterval }
-  | { kind: 'series'; points: { t: number; v: number }[]; unit?: '$' | '%' | ''; digits?: number };
+  | { kind: 'series'; points: { t: number; v: number }[]; unit?: '$' | '%' | ''; digits?: number; marks?: StudioMark[] };
+
+/**
+ * Events drawn on a series: halvings as full-height verticals, tops and
+ * bottoms as a marker plus a dashed horizontal line at their price.
+ */
+export interface StudioMark {
+  /** Epoch ms. */
+  t: number;
+  kind: 'halving' | 'top' | 'bottom';
+  label: string;
+  price?: number;
+}
 
 type BtcInterval = '15m' | '1h' | '4h' | '1d' | '1w';
 type Bar = { time: UTCTimestamp; open: number; high: number; low: number; close: number; volume?: number };
 type Kind = 'candle' | 'line' | 'area';
-type Ind = 'ma20' | 'ma50' | 'ema200' | 'bb' | 'vol' | 'rsi' | 'macd';
+export type Ind = 'ma20' | 'ema13' | 'ema21' | 'ma50' | 'ma200' | 'ema200' | 'bb' | 'vol' | 'rsi' | 'macd' | 'stoch';
 
 const BTC_TF: { k: BtcInterval; label: string; limit: number }[] = [
   { k: '15m', label: '15m', limit: 300 },
@@ -48,13 +63,26 @@ const BTC_TF: { k: BtcInterval; label: string; limit: number }[] = [
 ];
 const IND: { k: Ind; label: string; color: string; btcOnly?: boolean }[] = [
   { k: 'ma20', label: 'MA 20', color: '#ffd2ae' },
+  { k: 'ema13', label: 'EMA 13', color: '#ffd2ae' },
+  { k: 'ema21', label: 'EMA 21', color: '#ff9a5a' },
   { k: 'ma50', label: 'MA 50', color: '#b8663a' },
+  { k: 'ma200', label: 'MA 200', color: '#e8c872' },
   { k: 'ema200', label: 'EMA 200', color: '#c9b8aa' },
   { k: 'bb', label: 'Bollinger', color: '#8a5e40' },
   { k: 'vol', label: 'Volume', color: '#6b4a35', btcOnly: true },
   { k: 'rsi', label: 'RSI 14', color: '#ffb27a' },
   { k: 'macd', label: 'MACD', color: '#ffb27a' },
+  { k: 'stoch', label: 'Stoch 5,3,3', color: '#6aa8ff', btcOnly: true },
 ];
+
+/** Divergence line colours: bearish kinds red, bullish kinds green. */
+const DIV_COLOR: Record<DivKind, string> = {
+  bear: '#ff5a5a',
+  hidden_bear: 'rgba(255,90,90,0.6)',
+  bull: '#3ddc84',
+  hidden_bull: 'rgba(61,220,132,0.6)',
+};
+const DIV_SHORT: Record<DivKind, string> = { bear: 'Bear div', hidden_bear: 'Hidden bear', bull: 'Bull div', hidden_bull: 'Hidden bull' };
 
 const C = { bg: '#130e0a', grid: '#1f1712', line: '#241a13', text: '#9a887a', accent: '#ff6b1f', down: '#6b4a35', downWick: '#8a5e40' };
 
@@ -104,15 +132,16 @@ function Seg<T extends string>({ value, options, onChange }: { value: T; options
   );
 }
 
-function Studio({ title, source, onClose }: { title: string; source: StudioSource; onClose: () => void }) {
+function Studio({ title, source, onClose, preset }: { title: string; source: StudioSource; onClose: () => void; preset?: Ind[] }) {
   const isBtc = source.kind === 'btc';
   const [kind, setKind] = useState<Kind>(isBtc ? 'candle' : 'line');
   const [tf, setTf] = useState<BtcInterval>(isBtc ? (source.interval ?? '1d') : '1d');
   const [log, setLog] = useState(false);
-  const [inds, setInds] = useState<Set<Ind>>(new Set());
+  const [inds, setInds] = useState<Set<Ind>>(() => new Set(preset ?? []));
   const [btcBars, setBtcBars] = useState<Bar[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [legend, setLegend] = useState<Bar | null>(null);
+  const [divs, setDivs] = useState<{ time: UTCTimestamp; kind: DivKind }[]>([]);
   const box = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const rangeRef = useRef<LogicalRange | null>(null);
@@ -210,6 +239,9 @@ function Studio({ title, source, onClose }: { title: string; source: StudioSourc
     if (inds.has('ma20')) overlay(smaSeries(closes, 20), '#ffd2ae');
     if (inds.has('ma50')) overlay(smaSeries(closes, 50), '#b8663a');
     if (inds.has('ema200')) overlay(emaSeries(closes, 200), '#c9b8aa');
+    if (inds.has('ema13')) overlay(emaSeries(closes, 13), '#ffd2ae');
+    if (inds.has('ema21')) overlay(emaSeries(closes, 21), '#ff9a5a');
+    if (inds.has('ma200')) overlay(smaSeries(closes, 200), '#e8c872', 2);
     if (inds.has('bb')) {
       const b = bollingerSeries(closes, 20, 2);
       overlay(b.upper, '#8a5e40');
@@ -223,6 +255,7 @@ function Studio({ title, source, onClose }: { title: string; source: StudioSourc
       v.setData(bars.map((b) => ({ time: b.time, value: b.volume ?? 0, color: b.close >= b.open ? 'rgba(255,107,31,0.45)' : 'rgba(107,74,53,0.7)' })));
     }
     let pane = 1;
+    const divMarks: { time: UTCTimestamp; kind: DivKind }[] = [];
     if (inds.has('rsi')) {
       const r = chart.addSeries(LineSeries, { color: '#ffb27a', lineWidth: 1, priceLineVisible: false }, pane);
       r.setData(toLine(rsiSeries(closes, 14)));
@@ -237,6 +270,66 @@ function Studio({ title, source, onClose }: { title: string; source: StudioSourc
       chart.addSeries(LineSeries, { color: '#ffd2ae', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, pane).setData(toLine(m.macd));
       chart.addSeries(LineSeries, { color: '#8a5e40', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, pane).setData(toLine(m.signal));
       pane += 1;
+    }
+    if (inds.has('stoch') && isBtc) {
+      const ohlc = bars.map((b) => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }));
+      const st = stochSeries(ohlc);
+      const k = chart.addSeries(LineSeries, { color: '#6aa8ff', lineWidth: 1, priceLineVisible: false }, pane);
+      k.setData(toLine(st.k));
+      chart.addSeries(LineSeries, { color: '#ff9a3c', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, pane).setData(toLine(st.d));
+      k.createPriceLine({ price: 80, color: '#3a2b20', lineWidth: 1, lineStyle: 2, axisLabelVisible: false });
+      k.createPriceLine({ price: 20, color: '#3a2b20', lineWidth: 1, lineStyle: 2, axisLabelVisible: false });
+      // One two-point line per divergence, in the stoch pane and on price.
+      for (const dv of findDivergences(ohlc, st.k, st.d)) {
+        const color = DIV_COLOR[dv.kind];
+        const lineOpts = { color, lineWidth: 2 as const, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, pointMarkersVisible: false };
+        chart.addSeries(LineSeries, lineOpts, pane).setData([
+          { time: times[dv.i1], value: dv.k1 },
+          { time: times[dv.i2], value: dv.k2 },
+        ]);
+        chart.addSeries(LineSeries, { ...lineOpts, priceFormat }).setData([
+          { time: times[dv.i1], value: dv.p1 },
+          { time: times[dv.i2], value: dv.p2 },
+        ]);
+        divMarks.push({ time: times[dv.i2], kind: dv.kind });
+      }
+      pane += 1;
+    }
+    setDivs(divMarks);
+    const marks = source.kind === 'series' ? (source.marks ?? []) : [];
+    if (marks.length) {
+      // Snap each event to the bar that contains it.
+      const snap = (ms: number) => {
+        const t = Math.floor(ms / 1000);
+        let best = times[0];
+        for (const x of times) if (x <= t) best = x;
+        return best;
+      };
+      const halv = chart.addSeries(HistogramSeries, { priceScaleId: 'marks', lastValueVisible: false, priceLineVisible: false, color: 'rgba(246,238,231,0.16)' });
+      halv.priceScale().applyOptions({ scaleMargins: { top: 0, bottom: 0 }, visible: false });
+      const seen = new Set<number>();
+      halv.setData(
+        marks
+          .filter((m) => m.kind === 'halving' && m.t / 1000 >= times[0])
+          .map((m) => snap(m.t))
+          .filter((t) => (seen.has(t) ? false : (seen.add(t), true)))
+          .map((t) => ({ time: t, value: 1 })),
+      );
+      const ms: SeriesMarker<UTCTimestamp>[] = marks
+        .filter((m) => m.t / 1000 >= times[0])
+        .map((m) => ({
+          time: snap(m.t),
+          position: m.kind === 'bottom' ? ('belowBar' as const) : ('aboveBar' as const),
+          shape: m.kind === 'halving' ? ('square' as const) : m.kind === 'top' ? ('arrowDown' as const) : ('arrowUp' as const),
+          color: m.kind === 'halving' ? '#c9b8aa' : m.kind === 'top' ? '#ffd2ae' : '#ff6b1f',
+          text: m.label,
+        }))
+        .sort((a, b) => a.time - b.time);
+      createSeriesMarkers(main, ms);
+      for (const m of marks) {
+        if (m.kind === 'halving' || m.price == null) continue;
+        main.createPriceLine({ price: m.price, color: m.kind === 'top' ? 'rgba(255,210,174,0.55)' : 'rgba(255,107,31,0.55)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: m.label });
+      }
     }
     const panes = chart.panes();
     if (panes.length > 1) {
@@ -385,6 +478,16 @@ function Studio({ title, source, onClose }: { title: string; source: StudioSourc
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: 'var(--dim)' }}>{err ?? 'Memuat…'}</div>
           ) : null}
         </div>
+        {divs.length ? (
+          <span style={{ fontSize: 12.5, color: 'var(--dim)', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            <span>Divergence terakhir:</span>
+            {divs.slice(-4).map((d) => (
+              <span key={`${d.time}-${d.kind}`} style={{ color: DIV_COLOR[d.kind] }}>
+                {DIV_SHORT[d.kind]} · {when(d.time)}
+              </span>
+            ))}
+          </span>
+        ) : null}
         <span style={{ fontSize: 12.5, color: 'var(--dim)' }}>Geser untuk menggulir, scroll / cubit untuk zoom. Indikator kembali kosong saat ditutup.</span>
       </div>
     </div>
@@ -392,7 +495,7 @@ function Studio({ title, source, onClose }: { title: string; source: StudioSourc
 }
 
 /** The "open full screen" control on a card; mounts the studio on demand. */
-export function ExpandChart({ title, source, label = 'Perbesar' }: { title: string; source: StudioSource; label?: string }) {
+export function ExpandChart({ title, source, label = 'Perbesar', preset }: { title: string; source: StudioSource; label?: string; preset?: Ind[] }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -420,7 +523,29 @@ export function ExpandChart({ title, source, label = 'Perbesar' }: { title: stri
         </svg>
         {label}
       </button>
-      {open ? createPortal(<Studio title={title} source={source} onClose={() => setOpen(false)} />, document.body) : null}
+      {open ? createPortal(<Studio title={title} source={source} preset={preset} onClose={() => setOpen(false)} />, document.body) : null}
+    </>
+  );
+}
+
+/**
+ * A whole card as the "open full screen" control: click anywhere on it to open
+ * the studio with `preset` indicators switched on.
+ */
+export function ExpandCard({ title, source, preset, children }: { title: string; source: StudioSource; preset?: Ind[]; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(true)}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setOpen(true))}
+        style={{ cursor: 'pointer', height: '100%' }}
+      >
+        {children}
+      </div>
+      {open ? createPortal(<Studio title={title} source={source} preset={preset} onClose={() => setOpen(false)} />, document.body) : null}
     </>
   );
 }

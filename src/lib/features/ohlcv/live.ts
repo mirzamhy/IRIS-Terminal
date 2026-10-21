@@ -5,6 +5,7 @@
  */
 import { getCandles as coinbaseCandles } from '@/lib/sources/coinbase';
 import { getCandles as krakenCandles } from '@/lib/sources/kraken';
+import { getWeeklyCandles } from '@/lib/sources/weeklyCandles';
 import type { OhlcvCandle, OhlcvArgs } from './types';
 
 // Granularities Coinbase's public candles endpoint accepts. Anything else
@@ -13,10 +14,14 @@ const COINBASE_GRANS = new Set(['1m', '5m', '15m', '1h', '6h', '1d']);
 
 export async function fetchOhlcv({ symbol = 'BTC-USD', interval = '1d', limit = 100 }: OhlcvArgs) {
   let candles;
+  // Weekly: Monday-open weeks, the same bars the Overview checklist reads.
+  if (interval === '1w') candles = (await getWeeklyCandles()).candles;
   // Coinbase caps a response at 300 candles, so a longer window — or an
   // interval Coinbase does not serve — has to come from Kraken.
   const needsKraken = !COINBASE_GRANS.has(interval) || limit > 290;
-  if (needsKraken) {
+  if (candles) {
+    // already set
+  } else if (needsKraken) {
     try {
       candles = await krakenCandles(interval, 'XBTUSD');
       if (!candles.length) throw new Error('kraken returned no candles');

@@ -7,7 +7,7 @@
  * correction's status rules:
  *   - FINAL top: an ATH followed by a ≥60% fall and later a new ATH.
  *   - PROVISIONAL top: the running cycle's ATH once price is ≥40% below it;
- *     moves by itself when a new ATH prints.
+ *     moves by itself when a new ATH prints. FINAL once price is ≥50% below it.
  *   - Bottom: lowest close after the top (until the next ATH). CONFIRMED once
  *     price has risen ≥ +100% from it; a lower close moves the bottom and
  *     resets that.
@@ -37,7 +37,7 @@ export interface HalvingPoint {
   ts?: number | null;
 }
 
-export type CycleStatus = 'MENUNGGU TOP' | 'TOP SEMENTARA' | 'BOTTOM TERKONFIRMASI' | 'SIKLUS SELESAI';
+export type CycleStatus = 'MENUNGGU TOP' | 'TOP SEMENTARA' | 'TOP FINAL' | 'BOTTOM TERKONFIRMASI' | 'SIKLUS SELESAI';
 
 export interface Cycle {
   /** 1 = the first halving (block 210,000). */
@@ -102,8 +102,9 @@ export function findCycles(s: DailySeries, halvings: readonly HalvingPoint[]): C
       trough = pick.trough;
       windowEnd = pick.brokenDay;
     } else if (open.peak.day >= start && open.peak.day < end) {
-      if (1 - open.trough.price / open.peak.price >= C.TOP_CONFIRM_DRAWDOWN) {
-        top = { ...turn(open.peak), kind: 'provisional' };
+      const dd = 1 - open.trough.price / open.peak.price;
+      if (dd >= C.TOP_CONFIRM_DRAWDOWN) {
+        top = { ...turn(open.peak), kind: dd >= C.TOP_FINAL_DRAWDOWN ? 'final' : 'provisional' };
         trough = open.trough;
       } else {
         return { ...base, athPending: turn(open.peak), status: 'MENUNGGU TOP' };
@@ -119,7 +120,13 @@ export function findCycles(s: DailySeries, halvings: readonly HalvingPoint[]): C
       bottom: turn(trough),
       bottomConfirmed,
       riseFromBottom,
-      status: !bottomConfirmed ? 'TOP SEMENTARA' : top.kind === 'final' ? 'SIKLUS SELESAI' : 'BOTTOM TERKONFIRMASI',
+      status: !bottomConfirmed
+        ? top.kind === 'final'
+          ? 'TOP FINAL'
+          : 'TOP SEMENTARA'
+        : top.kind === 'final' && cand.length > 0
+          ? 'SIKLUS SELESAI'
+          : 'BOTTOM TERKONFIRMASI',
     };
   });
 }
@@ -385,7 +392,7 @@ export function analyzeCycles(
     const h = toDay(current.halving);
     push('top', dH2t ? windowFrom(h, dH2t, nowDay, 'B', bt) : null, dT2t && prevTop ? windowFrom(toDay(prevTop.date), dT2t, nowDay, 'A', bt) : null);
     push('bottom', dH2t && dT2b ? chainWindow(h, dH2t, dT2b, nowDay, bt) : null, null);
-  } else if (current && current.status === 'TOP SEMENTARA') {
+  } else if (current && (current.status === 'TOP SEMENTARA' || current.status === 'TOP FINAL')) {
     const t = toDay(current.top!.date);
     push('bottom', dT2b ? windowFrom(t, dT2b, nowDay, 'BOTTOM', bt) : null, null);
     push('nextTop', nextTopFromHalving, dT2t ? windowFrom(t, dT2t, nowDay, 'A', bt) : null);

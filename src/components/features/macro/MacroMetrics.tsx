@@ -4,6 +4,18 @@ import type { MacroMetric } from '@/lib/features/macroCountry';
 import { toMacroCountryLabels } from '@/lib/features/macroCountry/present';
 import { zWords } from '@/lib/zWords';
 import { ZTrack, zBand } from './ui';
+import { fmtDayShort } from '@/lib/dates';
+import type { MacroIndicator } from '@/lib/features/macroCountry/types';
+
+/** Monthly data is dated at the period start: show "Sep 2026"; daily data its day. */
+const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+export const fmtPeriod = (iso: string) => (iso.endsWith('-01') ? `${BULAN[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}` : fmtDayShort(iso));
+
+export function fmtIndicator(unit: MacroIndicator['unit'], v: number, signed = false): string {
+  const sign = signed && v > 0 ? '+' : v < 0 ? '−' : '';
+  const a = Math.abs(v);
+  return unit === 'k' ? `${sign}${a.toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : `${sign}${a.toFixed(2)}%`;
+}
 
 export interface MacroMetricsProps {
   macro: Envelope<MacroMetric[]>;
@@ -12,7 +24,8 @@ export interface MacroMetricsProps {
 }
 
 /**
- * Four US FRED series, each placed against its own last two years as a dot on
+ * The US FRED indicator set (CPI, core CPI / PCE, Fed upper bound, NFP,
+ * unemployment, claims, GDP, retail sales, 10Y, M2), each placed against its own last two years as a dot on
  * a track (curation 2026-10-18: no z / sigma numbers on screen). No good/bad
  * colour: "above usual" is a position, not news.
  */
@@ -20,12 +33,19 @@ export function MacroMetrics({ macro, country, countryLabel }: MacroMetricsProps
   const m = macro.data.find((x) => x.country === country) ?? macro.data[0];
   const L = toMacroCountryLabels(m);
 
-  const metrics: { key: string; label: string; what: string; value: string; z: number }[] = [
-    { key: 'inflation', label: 'Inflasi inti', what: 'per tahun, tanpa makanan & energi', value: L.inflation, z: m.zScores.inflation },
-    { key: 'rate', label: 'Suku bunga The Fed', what: 'rata-rata bulanan', value: L.rate, z: m.zScores.rate },
-    { key: 'growth', label: 'Pertumbuhan GDP', what: 'riil, per kuartal disetahunkan', value: L.growth, z: m.zScores.growth },
-    { key: 'cpi', label: 'Indeks CPI', what: 'level, hampir selalu naik', value: L.cpi, z: m.zScores.cpi },
-  ];
+  const metrics: { key: string; label: string; what: string; value: string; z: number }[] = m.indicators?.length
+    ? m.indicators.map((x) => ({
+        key: x.key,
+        label: x.label,
+        what: `${x.what} · ${fmtPeriod(x.date)}${x.previous !== null ? ` · sebelumnya ${fmtIndicator(x.unit, x.previous, x.key === 'nfp')}` : ''}`,
+        value: fmtIndicator(x.unit, x.latest, x.key === 'nfp'),
+        z: x.z,
+      }))
+    : [
+        { key: 'inflation', label: 'Inflasi inti', what: 'per tahun, tanpa makanan & energi', value: L.inflation, z: m.zScores.inflation },
+        { key: 'rate', label: 'Suku bunga The Fed', what: 'batas atas target', value: L.rate, z: m.zScores.rate },
+        { key: 'growth', label: 'Pertumbuhan GDP', what: 'riil, per kuartal disetahunkan', value: L.growth, z: m.zScores.growth },
+      ];
   const cols = 'minmax(170px, 1.6fr) minmax(80px, 0.7fr) minmax(160px, 1.6fr) minmax(100px, 0.8fr)';
 
   return (
@@ -48,7 +68,7 @@ export function MacroMetrics({ macro, country, countryLabel }: MacroMetricsProps
               key={x.key}
               className="ember-row"
               data-tip={zWords(x.z, '2 tahun terakhir')}
-              style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, alignItems: 'center', padding: '13px 12px' }}
+              style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, alignItems: 'center', padding: '11px 12px' }}
             >
               <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                 <span style={{ fontSize: 15 }}>{x.label}</span>

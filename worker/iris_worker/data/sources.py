@@ -69,6 +69,41 @@ def yahoo_daily(symbol: str, start: str = "2014-01-01") -> pd.DataFrame:
     return df
 
 
+def coinbase_btc_daily() -> pd.DataFrame:
+    """Candle harian BTC-USD Coinbase (300 hari terakhir), untuk menambal bolong Yahoo.
+
+    Yahoo kadang mengirim close kosong untuk satu hari dan tidak pernah
+    memperbaikinya (2026-10-20). Volume Coinbase hanya satu bursa (dalam BTC),
+    jadi tidak dipakai: kolom volume dikembalikan NaN dan diisi pemanggil.
+    """
+    j = http.get_json(
+        "https://api.exchange.coinbase.com/products/BTC-USD/candles",
+        params={"granularity": 86400},
+    )
+    if not isinstance(j, list) or not j:
+        raise ValueError(f"coinbase candles: respons tidak terduga: {str(j)[:200]}")
+    # Baris: [time, low, high, open, close, volume], terbaru dulu.
+    df = pd.DataFrame(
+        {"open": [r[3] for r in j], "high": [r[2] for r in j], "low": [r[1] for r in j],
+         "close": [r[4] for r in j], "volume": np.nan},
+        index=_utc_dates([r[0] for r in j]),
+    ).astype(float)
+    return df.sort_index()
+
+
+def fill_btc_gaps(btc: pd.DataFrame, upto: pd.Timestamp, patch: pd.DataFrame) -> pd.DataFrame:
+    """Isi hari yang hilang di `btc` (sampai `upto`) dari `patch`; volume = hari sebelumnya."""
+    start = max(btc.index.min(), patch.index.min())
+    want = pd.date_range(start, upto, freq="D")
+    missing = want.difference(btc.index).intersection(patch.index)
+    if missing.empty:
+        return btc
+    out = pd.concat([btc, patch.loc[missing, btc.columns]]).sort_index()
+    vol = [c for c in out.columns if c.endswith("volume")]
+    out[vol] = out[vol].ffill()
+    return out
+
+
 # ----------------------------------------------------------------------------
 # blockchain.com charts (keyless)
 # ----------------------------------------------------------------------------

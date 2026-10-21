@@ -22,7 +22,6 @@ const PAD_R = 62;
 const HISTORY_SHARE = 0.3;
 const TICK_STEPS = [0, 7, 14, 21, 30];
 const CLIP_ID = 'monthly-plot-area';
-const mono = { fontSize: 13, fill: 'var(--dim)' } as const;
 
 export function MonthlyFan({ fc }: { fc: Envelope<MonthlyForecastData> }) {
   const d = fc.data;
@@ -53,12 +52,24 @@ export function MonthlyFan({ fc }: { fc: Envelope<MonthlyForecastData> }) {
       lines: [
         `${fmtDay(b.date)} · D+${b.step} simulasi`,
         `Tengah ${fmtUsd(b.p50)} (${fmtSignedPct(pctVsSpot(b.p50, d.spot))})`,
-        `Rendah–tinggi ${fmtUsd(b.p25)} – ${fmtUsd(b.p75)}`,
+        `Separuh jalur ${fmtUsd(b.p25)} – ${fmtUsd(b.p75)}`,
         `8 dari 10 jalur ${fmtUsd(b.p10)} – ${fmtUsd(b.p90)}`,
       ],
     })),
   ];
 
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => lo + t * span);
+  const xTicks = TICK_STEPS.filter((s) => s <= steps);
+  const labels = [
+    ...yTicks.map((p) => ({ x: W - 4, y: y(p), text: `$${(p / 1000).toFixed(1)}k`, anchor: 'end' as const })),
+    ...xTicks.map((s, i) => ({
+      x: coneX(s),
+      y: H - 10,
+      text: s === 0 ? 'Sekarang' : `D+${s} · ${fmtDayShort(d.bands[s].date)}`,
+      anchor: i === xTicks.length - 1 ? ('end' as const) : ('middle' as const),
+    })),
+    { x: 4, y: H - 10, text: `${hist.length} hari terakhir`, anchor: 'start' as const },
+  ];
   const end = d.bands[steps];
   const k = (v: number) => `$${(v / 1000).toFixed(1)}k`;
 
@@ -106,22 +117,12 @@ export function MonthlyFan({ fc }: { fc: Envelope<MonthlyForecastData> }) {
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 16, height: 3, borderRadius: 2, background: '#c9b8aa' }} />harga sungguhan</span>
       </div>
       <div style={{ position: 'relative', zIndex: 4, padding: '8px 22px 8px' }}>
-        <ChartHover viewW={W} viewH={H} height={340} points={points} ariaLabel={`Kisaran harga BTC simulasi ${steps} hari ke depan`}>
-          {[0, 0.25, 0.5, 0.75, 1].map((t) => lo + t * span).map((p, i) => (
-            <g key={i}>
-              <line x1={0} x2={W - PAD_R} y1={y(p)} y2={y(p)} stroke="#2a2019" strokeDasharray="3 6" vectorEffect="non-scaling-stroke" />
-              <text x={W - PAD_R + 6} y={y(p) + 3} {...mono}>
-                {fmtUsd(p)}
-              </text>
-            </g>
+        <ChartHover viewW={W} viewH={H} height={340} points={points} labels={labels} ariaLabel={`Kisaran harga BTC simulasi ${steps} hari ke depan`}>
+          {yTicks.map((p, i) => (
+            <line key={i} x1={0} x2={W - PAD_R} y1={y(p)} y2={y(p)} stroke="#2a2019" strokeDasharray="3 6" vectorEffect="non-scaling-stroke" />
           ))}
-          {TICK_STEPS.filter((s) => s <= steps).map((s) => (
-            <g key={s}>
-              <line x1={coneX(s)} x2={coneX(s)} y1={PAD_T} y2={H - PAD_B} stroke="#2a2019" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" />
-              <text x={coneX(s) + 3} y={H - 8} {...mono}>
-                {s === 0 ? 'Sekarang' : `D+${s} ${fmtDayShort(d.bands[s].date)}`}
-              </text>
-            </g>
+          {xTicks.map((s) => (
+            <line key={s} x1={coneX(s)} x2={coneX(s)} y1={PAD_T} y2={H - PAD_B} stroke="#2a2019" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" />
           ))}
           <path d={ribbon('p95', 'p5')} fill="var(--accent)" fillOpacity={0.12} stroke="none" />
           <path d={ribbon('p90', 'p10')} fill="var(--accent)" fillOpacity={0.14} stroke="none" />
@@ -137,9 +138,6 @@ export function MonthlyFan({ fc }: { fc: Envelope<MonthlyForecastData> }) {
           <path d={line(d.bands.map((b) => [coneX(b.step), b.p50]))} fill="none" stroke="var(--accent)" strokeWidth={2.5} vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 70%, transparent))' }} />
           <path d={line(hist.map((p, i) => [histX(i), p.close]))} fill="none" stroke="#c9b8aa" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
           <line x1={splitX} x2={splitX} y1={PAD_T} y2={H - PAD_B} stroke="#5a4130" strokeDasharray="4 5" vectorEffect="non-scaling-stroke" />
-          <text x={4} y={H - 8} {...mono}>
-            {hist.length} hari terakhir
-          </text>
         </ChartHover>
       </div>
       <SourceFootnote env={fc} />

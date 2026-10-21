@@ -88,15 +88,15 @@ export function SeasonalityHeatmap({ seasonality }: SeasonalityHeatmapProps) {
 
           {(['mean', 'median'] as const).map((k) => (
             <Row key={k}>
-              <HeadCell>{k === 'mean' ? 'Rata-rata' : 'Median'}</HeadCell>
+              <HeadCell gold>{k === 'mean' ? 'Rata-rata' : 'Median'}</HeadCell>
               {summary.map((s) => {
                 const v = s[k];
-                if (v === null) return <DataCell key={s.month} strong>—</DataCell>;
+                if (v === null) return <DataCell key={s.month} strong gold>—</DataCell>;
                 const { tone, alpha, ink } = tint(v);
                 return (
-                  <DataCell key={s.month} strong tip={`${MONTHS[s.month - 1]} · ${k === 'mean' ? 'rata-rata' : 'median'} semua tahun\n${fmtPct(v)} dari ${s.n} tahun`}>
+                  <DataCell key={s.month} strong gold tip={`${MONTHS[s.month - 1]} · ${k === 'mean' ? 'rata-rata' : 'median'} semua tahun\n${fmtPct(v)} dari ${s.n} tahun`}>
                     <span aria-hidden style={{ position: 'absolute', inset: 0, borderRadius: 7, background: tone, opacity: alpha }} />
-                    <span style={{ position: 'relative', color: ink }}>{fmtPct(v)}</span>
+                    <span style={{ position: 'relative', color: ink, fontWeight: 800 }}>{fmtPct(v)}</span>
                   </DataCell>
                 );
               })}
@@ -104,7 +104,7 @@ export function SeasonalityHeatmap({ seasonality }: SeasonalityHeatmapProps) {
           ))}
 
           <Row>
-            <HeadCell>% tahun naik</HeadCell>
+            <HeadCell>Probability up</HeadCell>
             {summary.map((s) => (
               <DataCell key={s.month} strong tip={`${MONTHS[s.month - 1]}\nNaik di ${s.up} dari ${s.n} tahun`}>
                 <span style={{ display: 'block', color: s.pctUp === null || s.pctUp === 50 ? 'var(--mut)' : s.pctUp > 50 ? '#ffb27a' : 'var(--down)' }}>
@@ -134,23 +134,30 @@ function Row({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function HeadCell({ children, cls }: { children?: ReactNode; cls?: string }) {
+/** Gold frame for the summary rows (mean, median), so they read apart from the years. */
+const GOLD = '#e8c872';
+
+function HeadCell({ children, cls, gold }: { children?: ReactNode; cls?: string; gold?: boolean }) {
   return (
-    <div className={cls} style={{ padding: '6px 4px', textAlign: 'center', fontSize: 12.5, color: 'var(--dim)', alignSelf: 'center' }}>
+    <div
+      className={cls}
+      style={{ padding: '6px 4px', textAlign: 'center', fontSize: 12.5, alignSelf: 'center', color: gold ? GOLD : 'var(--dim)', fontWeight: gold ? 800 : undefined }}
+    >
       {children}
     </div>
   );
 }
 
-function DataCell({ children, strong, tip, running, cls }: { children?: ReactNode; strong?: boolean; tip?: string; running?: boolean; cls?: string }) {
+function DataCell({ children, strong, tip, running, cls, gold }: { children?: ReactNode; strong?: boolean; tip?: string; running?: boolean; cls?: string; gold?: boolean }) {
   return (
     <div
       className={cls}
       data-tip={tip}
       style={{
         position: 'relative',
-        outline: running ? '2px dashed var(--txt)' : undefined,
+        outline: running ? '2px dashed var(--txt)' : gold ? `2px solid ${GOLD}` : undefined,
         outlineOffset: -2,
+        boxShadow: gold ? `0 0 10px color-mix(in srgb, ${GOLD} 25%, transparent)` : undefined,
         borderRadius: 7,
         background: strong ? 'var(--raise)' : 'var(--sunk)',
         padding: '8px 4px',

@@ -36,14 +36,10 @@ export function PowerLawPercentile({ pl }: { pl: Envelope<PowerLawData> }) {
           <span style={{ fontSize: 16, color: 'var(--mut)' }}>dari 100 · {d.today.zone.toLowerCase()}</span>
         </div>
         <ZoneGauge pct={d.today.pct} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10 }}>
           <div className="iris-inset" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 13, color: 'var(--dim)' }}>Minggu di bawah tengah</span>
             <span style={{ fontSize: 19, fontWeight: 600 }}>{below.toFixed(0)}%</span>
-          </div>
-          <div className="iris-inset" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Eksponen b</span>
-            <span style={{ fontSize: 19, fontWeight: 600 }}>{d.fit.b.toFixed(2)}</span>
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -129,6 +129,7 @@ export function rowToForecast(
     label,
     confidence: row.p_up * 100, // Disajikan sebagai P(UP, 7D) dalam persen
     range: { min, max },
+    anchorClose: lastClose,
     drivers,
     score,
     classifier,

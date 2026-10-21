@@ -11,6 +11,7 @@ import { MethodTag } from './ui';
 const STATUS_WORD: Record<string, string> = {
   'MENUNGGU TOP': 'Menunggu top',
   'TOP SEMENTARA': 'Top sementara',
+  'TOP FINAL': 'Top final',
   'BOTTOM TERKONFIRMASI': 'Bottom terkonfirmasi',
   'SIKLUS SELESAI': 'Siklus selesai',
 };

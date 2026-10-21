@@ -102,7 +102,7 @@ export function WhaleWire({ initial, limit = 50 }: WhaleWireProps) {
     <Panel style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 320 }}>
       <PanelHeader
         title="WHALE WIRE"
-        note="Large transfers, all chains · click a row for detail"
+        note="Transfer BTC ≥100 dari blok terbaru · klik baris untuk detail"
         right={<MockBadge env={env} />}
       />
 

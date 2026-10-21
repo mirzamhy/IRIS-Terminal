@@ -75,9 +75,14 @@ describe('curated sections (2026-10-18)', () => {
     expect(quant.subs.map((s) => s.slug)).toEqual([null, 'seasonality', 'cycle', 'corridor']);
   });
 
-  it('splits On-Chain into ETF, long/short and wallets', () => {
+  it('splits On-Chain into overview, ETF, long/short and wallets', () => {
     const chain = SECTIONS.find((s) => s.key === 'chain')!;
-    expect(chain.subs.map((s) => s.slug)).toEqual(['etf', 'long-short', 'wallets']);
+    expect(chain.subs.map((s) => s.slug)).toEqual([null, 'etf', 'long-short', 'wallets']);
+  });
+
+  it('splits Macro into overview, economic data, regime and markets', () => {
+    const macro = SECTIONS.find((s) => s.key === 'macro')!;
+    expect(macro.subs.map((s) => s.slug)).toEqual([null, 'data', 'regime', 'markets']);
   });
 });
 

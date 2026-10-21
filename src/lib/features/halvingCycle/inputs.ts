@@ -10,6 +10,8 @@ import { prepareDaily, isoDay, lastDay, toDay, type DailySeries } from '@/lib/qu
 import { getBtcDailyCloses, type PriceSource } from '@/lib/sources/coinmetrics';
 import { getBlockHeight } from '@/lib/sources/blockHeight';
 import { getAverageBlockMinutes, getHalvings, type Halving } from '@/lib/sources/halvings';
+import { getCandles as coinbaseCandles } from '@/lib/sources/coinbase';
+import { getCandles as krakenCandles } from '@/lib/sources/kraken';
 
 export interface CycleInputs {
   series: DailySeries;
@@ -28,11 +30,26 @@ const warn = (what: string) => (err: unknown) => {
   return null;
 };
 
+/**
+ * Daily closes up to today. The long history (Coin Metrics, updated daily
+ * with a lag of a day or two) is extended with exchange daily candles for the
+ * days it does not have yet; today's candle closes at the live price, so the
+ * Quant pages always read "today" on every load.
+ */
 export const loadCloses = cache(async () => {
-  const closes = await getBtcDailyCloses();
-  const series = prepareDaily(closes.rows);
+  const [closes, recent] = await Promise.all([
+    getBtcDailyCloses(),
+    coinbaseCandles('1d', 30, 'BTC-USD').catch(() => krakenCandles('1d', 'XBTUSD')).catch(warn('recent daily candles')),
+  ]);
+  const histEnd = closes.rows.reduce((m, r) => (r.date > m ? r.date : m), '');
+  const tail = (recent ?? []).map((c) => ({ date: isoDay(Math.floor(c.ts / 86_400)), price: c.close })).filter((r) => r.date > histEnd);
+  const series = prepareDaily([...closes.rows, ...tail]);
   if (series.prices.length < 3000) return null;
-  return { series, source: closes.source, asOf: `${isoDay(lastDay(series) + 1)}T00:00:00Z` };
+  const lastTs = recent?.length ? recent[recent.length - 1].ts : null;
+  // Today's candle is live (its open is the honest timestamp); a history-only
+  // series is final at the end of its last day.
+  const asOf = tail.length && lastTs !== null ? new Date(lastTs * 1000).toISOString() : `${isoDay(lastDay(series) + 1)}T00:00:00Z`;
+  return { series, source: closes.source, asOf };
 });
 
 export const loadCycleInputs = cache(async (): Promise<CycleInputs | null> => {

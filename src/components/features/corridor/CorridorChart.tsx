@@ -1,6 +1,5 @@
 import { Panel, MockBadge, SourceFootnote } from '@/components/primitives';
 import { ChartHover } from '@/components/charts/ChartHover';
-import { ExpandChart } from '@/components/charts/ChartStudio';
 import type { Envelope } from '@/lib/envelope';
 import type { PowerLawData } from '@/lib/features/powerLawCorridor';
 import { usd } from '@/lib/features/halvingCycle/present';
@@ -71,7 +70,6 @@ export function CorridorChart({ pl }: { pl: Envelope<PowerLawData> }) {
             <span style={{ width: 14, height: 10, borderRadius: 3, background: 'color-mix(in srgb, var(--accent) 22%, var(--panel))' }} />
             Koridor P5–P95
           </span>
-          <ExpandChart title="BTC mingguan, sejak 2010" source={{ kind: 'series', points: pts.map((p) => ({ t: Date.parse(p.date), v: p.price })), unit: '$', digits: 0 }} />
         </div>
       </div>
       <div style={{ position: 'relative', zIndex: 4, padding: '12px 26px 8px' }}>

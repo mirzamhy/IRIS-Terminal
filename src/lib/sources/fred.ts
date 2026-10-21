@@ -25,7 +25,10 @@ function key(): string {
  * price indices); `pc1` = percent change from a year ago. An inflation *rate* has
  * to be `pc1` of a price index — the raw index (~339 for US core CPI) is not one.
  */
-export type FredUnits = 'lin' | 'pc1';
+export type FredUnits = 'lin' | 'pc1' | 'chg' | 'pch';
+
+/** Server-side aggregation of a daily / weekly series to monthly (end of period). */
+export type FredFrequency = 'm' | 'q' | null;
 
 interface ObsResponse {
   observations: { date: string; value: string }[];
@@ -39,10 +42,12 @@ export async function getObservations(
   seriesId: string,
   limit = 24,
   units: FredUnits = 'lin',
+  frequency: FredFrequency = null,
 ): Promise<{ date: string; value: number }[]> {
   const url =
     `${BASE}?series_id=${encodeURIComponent(seriesId)}` +
-    `&api_key=${key()}&file_type=json&sort_order=desc&limit=${limit}&units=${units}`;
+    `&api_key=${key()}&file_type=json&sort_order=desc&limit=${limit}&units=${units}` +
+    (frequency ? `&frequency=${frequency}&aggregation_method=eop` : '');
   const j = await fetchJson<ObsResponse>(url, { revalidate: 3600 });
   const rows = (j?.observations ?? [])
     .filter((o) => o.value !== '.' && o.value != null)
@@ -62,8 +67,9 @@ export async function getLatestAndZScore(
   seriesId: string,
   window = 24,
   units: FredUnits = 'lin',
+  frequency: FredFrequency = null,
 ): Promise<{ latest: number; z: number; asOf: string }> {
-  const obs = await getObservations(seriesId, window, units);
+  const obs = await getObservations(seriesId, window, units, frequency);
   if (obs.length === 0) throw new Error(`fred: no observations for ${seriesId}`);
 
   const values = obs.map((o) => o.value);

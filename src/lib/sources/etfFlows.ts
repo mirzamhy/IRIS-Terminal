@@ -232,6 +232,6 @@ export function parseEtfFlowsHtml(html: string): EtfFlowTable {
 
 /** Fetch + parse. Cached for an hour; the underlying data updates once a day. */
 export async function getEtfFlows(): Promise<EtfFlowTable> {
-  const html = await fetchText(URL, { revalidate: 3600, timeoutMs: 15_000 });
+  const html = await fetchText(URL, { revalidate: 900, timeoutMs: 15_000 });
   return parseEtfFlowsHtml(html);
 }

@@ -101,10 +101,33 @@ interface RawTakerRow {
   timestamp?: number;
 }
 
+/**
+ * Hourly taker flow, built from 5-minute rows. Binance only publishes a 1h row
+ * once the hour has closed (and a few minutes after), so the 1h endpoint ran up
+ * to two hours behind; 5m rows summed per hour keep the newest hour live.
+ */
 export async function getTakerFlow(period = '1h', limit = 48): Promise<TakerPoint[]> {
+  if (period !== '1h') return getTakerRows(period, limit, 120);
+  const rows = await getTakerRows('5m', Math.min(500, limit * 12 + 12), 60);
+  const by = new Map<number, TakerPoint>();
+  for (const r of rows) {
+    const h = Math.floor(r.ts / 3_600_000) * 3_600_000;
+    const g = by.get(h);
+    if (g) {
+      g.buyVol += r.buyVol;
+      g.sellVol += r.sellVol;
+    } else by.set(h, { ts: h, buyVol: r.buyVol, sellVol: r.sellVol, ratio: 0 });
+  }
+  return [...by.values()]
+    .map((p) => ({ ...p, ratio: p.sellVol > 0 ? p.buyVol / p.sellVol : 0 }))
+    .sort((a, b) => a.ts - b.ts)
+    .slice(-limit);
+}
+
+async function getTakerRows(period: string, limit: number, revalidate: number): Promise<TakerPoint[]> {
   const rows = await fetchJson<unknown>(
     `${FAPI}/takerlongshortRatio?symbol=BTCUSDT&period=${period}&limit=${limit}`,
-    { revalidate: 300 },
+    { revalidate },
   );
   if (!Array.isArray(rows)) throw new Error('binance: takerlongshortRatio did not return an array');
 

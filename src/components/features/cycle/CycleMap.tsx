@@ -74,7 +74,20 @@ export function CycleMap({ cycle }: { cycle: Envelope<HalvingCycleData> }) {
           <Legend swatch={<span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)' }} />} label="Dasar" />
           <Legend swatch={<span style={{ width: 2, height: 14, background: 'color-mix(in srgb, #f6eee7 40%, transparent)' }} />} label="Halving" />
           <Legend swatch={<span style={{ width: 10, height: 10, borderRadius: '50%', boxShadow: 'inset 0 0 0 2px #c9b8aa' }} />} label="Belum final" />
-          <ExpandChart title="BTC mingguan, semua siklus" source={{ kind: 'series', points: hist.map((p) => ({ t: Date.parse(p.date), v: p.price })), unit: '$', digits: 0 }} />
+          <ExpandChart
+            title="BTC mingguan, semua siklus"
+            source={{
+              kind: 'series',
+              points: hist.map((p) => ({ t: Date.parse(p.date), v: p.price })),
+              unit: '$',
+              digits: 0,
+              marks: [
+                ...a.cycles.map((c) => ({ t: Date.parse(c.halving), kind: 'halving' as const, label: `Halving ${c.index}` })),
+                ...a.cycles.flatMap((c) => (c.top ? [{ t: Date.parse(c.top.date), kind: 'top' as const, label: `Top ${c.index}${c.top.kind === 'final' ? '' : ' (sementara)'}`, price: c.top.price }] : [])),
+                ...a.cycles.flatMap((c) => (c.bottom ? [{ t: Date.parse(c.bottom.date), kind: 'bottom' as const, label: `Bottom ${c.index}${c.bottomConfirmed ? '' : ' (sementara)'}`, price: c.bottom.price }] : [])),
+              ],
+            }}
+          />
         </div>
       </div>
       <div style={{ position: 'relative', zIndex: 4, padding: '12px 26px 8px' }}>

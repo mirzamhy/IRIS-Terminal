@@ -81,6 +81,16 @@ def run_refresh(data_dir: Optional[Path] = None, now: Optional[pd.Timestamp] = N
     # `yahoo_daily`), jadi "kemarin" tidak boleh diasumsikan ada. Scheduler mencoba
     # ulang sampai candle kemarin muncul (lihat scheduler.data_is_fresh).
     btc = btc[btc.index <= build.last_closed_day(now)]
+    # Hari yang bolong di Yahoo (close kosong yang tidak pernah diperbaiki) diisi
+    # dari candle Coinbase, supaya satu hari hilang tidak menahan as_of selamanya.
+    try:
+        patched = sources.fill_btc_gaps(btc, build.last_closed_day(now), sources.coinbase_btc_daily())
+        if len(patched) > len(btc):
+            filled = patched.index.difference(btc.index)
+            _log(f"  [isi]  yahoo_btc bolong {', '.join(str(d.date()) for d in filled)} -> Coinbase")
+        btc = patched
+    except Exception as e:  # tambalan opsional; Yahoo tetap sumber utama
+        _log(f"  [skip] tambalan Coinbase gagal: {e}")
     as_of = btc.index.max()
 
     results = {"yahoo_btc": btc_res}

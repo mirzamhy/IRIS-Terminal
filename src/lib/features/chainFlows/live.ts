@@ -26,6 +26,14 @@ const MIN_TRANSFER_BTC = 50;
 /** The radar shows a working set, not an archive. */
 const MAX_TRANSFERS = 40;
 
+/**
+ * Only transfers from the last week count. Esplora returns each address's last
+ * 25 transactions however old they are, and a quiet cold wallet's newest move
+ * can be months back; mixing those in made the wire and the net flow look
+ * frozen (2026-10-21).
+ */
+const WINDOW_SEC = 7 * 86_400;
+
 export async function fetchChainFlows(_args: ChainFlowsArgs) {
   void _args;
 
@@ -49,7 +57,9 @@ export async function fetchChainFlows(_args: ChainFlowsArgs) {
     }
   }
 
+  const cutoff = Date.now() / 1000 - WINDOW_SEC;
   const transfers = [...byTxid.values()]
+    .filter((t) => t.blockTime === 0 || t.blockTime >= cutoff)
     // Unconfirmed transfers carry blockTime 0; float them to the top, they are
     // the newest thing on the wire.
     .sort((a, b) => (b.blockTime || Infinity) - (a.blockTime || Infinity))

@@ -64,9 +64,9 @@ describe('halving cycles — notebook parity', () => {
 });
 
 describe('halving cycles — time transitions', () => {
-  it('T1: fixture as is → TOP SEMENTARA; bottom, next top and halving 5 projected', () => {
-    expect(base.current!.status).toBe('TOP SEMENTARA');
-    expect(base.current!.top!.kind).toBe('provisional');
+  it('T1: fixture as is (−53% from the 2025 top) → TOP FINAL; bottom, next top and halving 5 projected', () => {
+    expect(base.current!.status).toBe('TOP FINAL');
+    expect(base.current!.top!.kind).toBe('final');
     expect(base.projections.map((p) => p.key)).toEqual(['bottom', 'nextTop']);
     const bottom = base.projections[0].primary;
     expect(dayDiff(bottom.center, '2026-10-19')).toBeLessThanOrEqual(1);
@@ -99,7 +99,7 @@ describe('halving cycles — time transitions', () => {
     expect(r.cycles).toHaveLength(5);
     expect(r.current!.index).toBe(5);
     expect(r.current!.status).toBe('MENUNGGU TOP');
-    expect(r.cycles[3].top).toMatchObject({ date: '2025-10-06', kind: 'provisional' });
+    expect(r.cycles[3].top).toMatchObject({ date: '2025-10-06', kind: 'final' });
     expect(r.nextHalving!.height).toBe(1_260_000);
     expect(r.projections.map((p) => [p.key, p.primary.method])).toEqual([
       ['top', 'B'],

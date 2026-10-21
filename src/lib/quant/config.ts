@@ -29,6 +29,11 @@ export const HALVINGS_FALLBACK: readonly { height: number; date: string }[] = [
 export const MAJOR_TOP_DRAWDOWN = 0.6;
 /** The running cycle's highest close is a PROVISIONAL top once price is ≥ 40% below it. */
 export const TOP_CONFIRM_DRAWDOWN = 0.4;
+/**
+ * …and a FINAL top once price has fallen ≥ 50% from it (2026-10-21): a fall
+ * that deep has always been a cycle top, so no new ATH is needed to call it.
+ */
+export const TOP_FINAL_DRAWDOWN = 0.5;
 /** A bottom is CONFIRMED once price has risen ≥ +100% from it without a lower close. */
 export const BOTTOM_CONFIRM_RISE = 1.0;
 /** > 1 widens every interval to allow for the pattern changing. */
